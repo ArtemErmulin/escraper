@@ -8,6 +8,6 @@ pip install -e git+ssh://git@github.com/%profine_name%/event-scraper.git@branch<
 
 # Usage
 ```python
->>> from eparser import EventParser
->>> escruper = EventParser()
+>>> from escraper import Parser
+>>> p = Parser()
 ```
