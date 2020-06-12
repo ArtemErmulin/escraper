@@ -1,4 +1,5 @@
 from copy import deepcopy
+import os
 import random
 
 import requests
@@ -68,7 +69,7 @@ class Timepad(BaseParser):
         return self.parse(event_id)
 
 
-class Parser:
+class EventParser:
     def get_events(self, source=None, *args, **kwargs):
         if source is None:
             parser = random.choice(list(_PARSERS.values()))

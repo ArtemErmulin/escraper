@@ -1,13 +1,17 @@
-# eparser
-Event Parser
+# escraper
+Event Scraper
 
 Istalling:
 ```bash
-pip install -e git+ssh://git@github.com/%profine_name%/event-scraper.git@branch<branch-name>#egg=event-scraper
+pip install -e git+ssh://git@github.com/ArtemErmulin/escraper.git@master#egg=escraper
 ```
 
 # Usage
 ```python
->>> from escraper import Parser
->>> p = Parser()
+>>> from escraper import EventParser
+>>> p = EventParser()
+>>> p.all_parsers
+['timepad']
+>>> p.get_events()
+...
 ```
