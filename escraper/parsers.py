@@ -1,19 +1,41 @@
-from copy import deepcopy
+from collections import namedtuple
+from datetime import datetime
 import os
+import locale
 import random
+import re
 
 import requests
 from bs4 import BeautifulSoup
 
 from .base import BaseParser
+from . import posting
 
 
+locale.setlocale(locale.LC_ALL, "ru_RU.UTF-8")  # for month names
+STRPTIME = "%Y-%m-%dT%H:%M:%S%z"
 _PARSERS = dict()
+EventData = namedtuple(
+    "event_data", [
+        "title",
+        "title_date",
+        "place_name",
+        "post_text",
+        "date",
+        "adress",
+        "poster_imag",
+        "url",
+    ]
+)
 
 
 def parser_register(cls):
     _PARSERS[cls.name] = cls()
     return cls
+
+
+def remove_html_tags(data):
+    return BeautifulSoup(data, "html.parser").text
 
 
 @parser_register
@@ -41,36 +63,45 @@ class Timepad(BaseParser):
         res = requests.get(url=url, headers=self.headers)
 
         if not res.ok:
-            raise ValueError("Bad request, reason: {}".format(res.reson))
+            raise ValueError("Bad request, reason: {}".format(res.reason))
 
         r = res.json()
 
-        data = dict(
-            starts_at=r["starts_at"],
-            ends_at=r["ends_at"],
-            name=r["name"],
-            description_short=r["description_short"],
-            url=r["url"],
-            poster_image=r["poster_image"]["default_url"],
-            city=r["location"]["city"],
-            org_name=r["organization"]["name"],
-            categories=r["categories"],
-            tickets_limit=r["tickets_limit"],
-            ticket_types=r["ticket_types"],
-            age_limit=r["age_limit"],
-            access_status=r["access_status"],
-            is_registration_open=r["registration_data"]["is_registration_open"],
-        )
-        return data
+        starts_at = datetime.strptime(r["starts_at"], STRPTIME)
+        ends_at = datetime.strptime(r["ends_at"], STRPTIME)
 
-    def get_events(self):
-        # testing
-        event_id = 1330000
+        if starts_at.day == ends_at.day:
+            start_format = "%d %B %H:%M-"
+            end_format = "%H:%M"
+        else:
+            start_format = "с %d %B %H:%M "
+            end_format = "по %d %B %H:%M"
+
+        date = starts_at.strftime(start_format) + ends_at.strftime(end_format)
+
+        return EventData(
+            title=remove_html_tags(r["name"]),
+            title_date=starts_at.strftime("%d %B"),
+            place_name=remove_html_tags(r["organization"]["name"]),
+            post_text=remove_html_tags(r["description_html"]),
+            date=date,
+            adress=remove_html_tags(r["location"]["address"]),
+            poster_imag=r["poster_image"]["default_url"],
+            url=r["url"],
+        )
+
+    def get_events(self, event_id=None, event_url=None):
+        if event_url is not None:
+            event_id = re.findall(r"(?<=event/)\d*(?=/)", event_url)[0]
+
+        if event_id is None:
+            raise ValueError("event_id required.")
+
         return self.parse(event_id)
 
 
 class EventParser:
-    def get_events(self, source=None, *args, **kwargs):
+    def get_events(self, source=None, as_post=True, *args, **kwargs):
         if source is None:
             parser = random.choice(list(_PARSERS.values()))
         elif source not in _PARSERS:
@@ -78,8 +109,11 @@ class EventParser:
         else:
             parser = _PARSERS[source]
 
-        return parser.get_events(*args, **kwargs)
+        event_data = parser.get_events(*args, **kwargs)
+
+        # create post layout
+        return posting.create(event_data)
 
     @property
     def all_parsers(self):
-        return deepcopy(list(_PARSERS.keys()))
+        return list(_PARSERS.keys())
