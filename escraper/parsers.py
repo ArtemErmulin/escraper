@@ -116,18 +116,45 @@ class Timepad(BaseParser):
 
 
 class EventParser:
-    def get_events(self, source=None, as_post=True, *args, **kwargs):
-        if source is None:
-            parser = random.choice(list(_PARSERS.values()))
-        elif source not in _PARSERS:
+    """
+    Main parser for all sites.
+
+    Methods:
+    --------
+    get_events(source, as_post=True, *args, **kwargs)
+        Getting event parameters from source.
+        
+        source : string
+            Source site, one of EventParser.all_parsers.
+
+        as_post : bool, default True
+            Convert event parameters to channel post layout.
+
+        *args, **kwargs : source-parser specific parameters
+
+    all_parsers : list
+        List all available parsers.
+    """
+    def get_events(self, source, as_post=True, *args, **kwargs):
+        if not isinstance(source, str):
+            raise TypeError(
+                "Invalid 'source' argument type: required 'str', given {}."
+                .format(type(source))
+            )
+
+        if source not in _PARSERS:
             raise ValueError("Unknown source.")
         else:
             parser = _PARSERS[source]
 
         event_data = parser.get_events(*args, **kwargs)
 
-        # create post layout
-        return posting.create(event_data)
+        if as_post:
+            # create post layout (type == str)
+            return posting.create(event_data)
+
+        # (type == EventData)
+        return event_data
 
     @property
     def all_parsers(self):
