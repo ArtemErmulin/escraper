@@ -102,7 +102,7 @@ class Timepad(BaseParser):
 
     def get_title_date(self, event):
         starts_at = datetime.strptime(event["starts_at"], STRPTIME)
-        return starts_at.strftime("%d %B")
+        return starts_at.strftime("%A %d %B")
 
     def get_date(self, event):
         starts_at = datetime.strptime(event["starts_at"], STRPTIME)
