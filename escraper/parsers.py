@@ -43,6 +43,19 @@ class Timepad(BaseParser):
     """
     Parse ivents from www.timepad.ru by API:
     http://dev.timepad.ru/api/what-api-can/
+
+    Methods:
+    --------
+
+    get_events(event_id=None, event_url=None)
+        Getting event parameters from timepad. Requieres one argument
+        from following:
+
+        event_id : int or string, default None
+            event id on timepad (...timepad.ru/event/{event_id})
+
+        event_url : str, default None
+            url to event on timepad.ru
     """
     name = "timepad"
     url = "www.timepad.ru"
