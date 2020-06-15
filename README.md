@@ -17,15 +17,21 @@ Available sites-parsers:
 ['timepad']
 ```
 ## Timepad
-Get event by event_id:
+Get event post by event_id:
 ```python
->>> ep.get_events(source="timepad", event_id=1327190)
+>>> ep.get_event(source="timepad", event_id=1327190)
 <event post>
 ```
 
 or by url:
 ```python
 >>> event_url = "https://excava.timepad.ru/event/1327190/"
->>> ep.get_events(source="timepad", event_url=event_url)
+>>> ep.get_event(source="timepad", event_url=event_url)
 <event post>
+```
+
+Get event data as named tuple:
+```python
+>>> ep.get_event(source="timepad", event_id=1327190, as_post=False)
+<named tuple event data>
 ```
