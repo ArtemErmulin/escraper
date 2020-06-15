@@ -12,7 +12,7 @@ from .base import BaseParser
 from . import posting
 
 
-locale.setlocale(locale.LC_ALL, "ru_RU.UTF-8")  # for month names
+locale.setlocale(locale.LC_ALL, "ru_RU.UTF-8")  # for month and weekday names
 STRPTIME = "%Y-%m-%dT%H:%M:%S%z"
 _PARSERS = dict()
 EventData = namedtuple(
@@ -71,7 +71,7 @@ class Timepad(BaseParser):
             Authorization=f"Bearer {self._token}",
         )
 
-    def get_events(self, event_id=None, event_url=None):
+    def get_event(self, event_id=None, event_url=None):
         if event_url is not None:
             event_id = re.findall(r"(?<=event/)\d*(?=/)", event_url)[0]
 
@@ -134,7 +134,7 @@ class EventParser:
 
     Methods:
     --------
-    get_events(source, as_post=True, *args, **kwargs)
+    get_event(source, as_post=True, *args, **kwargs)
         Getting event parameters from source.
         
         source : string
@@ -148,7 +148,7 @@ class EventParser:
     all_parsers : list
         List all available parsers.
     """
-    def get_events(self, source, as_post=True, *args, **kwargs):
+    def get_event(self, source, as_post=True, *args, **kwargs):
         if not isinstance(source, str):
             raise TypeError(
                 "Invalid 'source' argument type: required 'str', given {}."
@@ -160,7 +160,7 @@ class EventParser:
         else:
             parser = _PARSERS[source]
 
-        event_data = parser.get_events(*args, **kwargs)
+        event_data = parser.get_event(*args, **kwargs)
 
         if as_post:
             # create post layout (type == str)
