@@ -159,6 +159,68 @@ class Timepad(BaseParser):
 
         return remove_html_tags(address)
 
+    @property
+    def event_categories(self):
+        """
+        Getting list of events categories.
+
+        Return:
+        -------
+        [dict(id=str, name=str, tag=str), ...]
+
+        Example:
+        --------
+        [
+            {'id': '217', 'name': 'Бизнес', 'tag': 'business'},
+            {'id': '374', 'name': 'Кино', 'tag': 'cinema'},
+            {'id': '376', 'name': 'Спорт', 'tag': 'sport'},
+            ...
+        ]
+        """
+        url = "https://api.timepad.ru/v1/dictionary/event_categories"
+        return _request_get(url, headers=self.headers).json()["values"]
+
+    @property
+    def event_statuses(self):
+        """
+        Getting list of events statuses.
+
+        Return:
+        -------
+        [dict(id=str, name=str), ...]
+
+        Example:
+        --------
+        [
+            {'id': 'ok', 'name': 'Ok'},
+            {'id': 'deleted', 'name': 'Удалена'},
+            {'id': 'inactive', 'name': 'Неактивна'}
+        ]
+        """
+        url = "https://api.timepad.ru/v1/dictionary/event_statuses"
+        return _request_get(url, headers=self.headers).json()["values"]
+
+    @property
+    def tickets_statuses(self):
+        """
+        Getting list of tickets statuses.
+
+        Return:
+        -------
+        [dict(id=str, name=str), ...]
+
+        Example:
+        --------
+        [
+            {'id': 'notpaid', 'name': 'просрочено'},
+            {'id': 'ok', 'name': 'бесплатно'},
+            {'id': 'paid', 'name': 'оплачено'},
+            ...
+        ]
+        """
+        url = "https://api.timepad.ru/v1/dictionary/tickets_statuses"
+        return _request_get(url, headers=self.headers).json()["values"]
+
 
 class EventParser:
     """
