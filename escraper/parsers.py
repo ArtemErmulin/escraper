@@ -38,6 +38,15 @@ def remove_html_tags(data):
     return BeautifulSoup(data, "html.parser").text
 
 
+def _request_get(*args, **kwargs):
+    response = requests.get(*args, **kwargs)
+
+    if not response.ok:
+        raise ValueError("Bad request, reason: {}".format(response.reason))
+
+    return response
+
+
 @parser_register
 class Timepad(BaseParser):
     """
@@ -59,7 +68,7 @@ class Timepad(BaseParser):
     """
     name = "timepad"
     url = "www.timepad.ru"
-    events_api = "https://api.timepad.ru/v1/events/{event_id}"
+    events_api = "https://api.timepad.ru/v1/events"
 
     def __init__(self):
         # TODO add as enviroment variable
@@ -80,14 +89,37 @@ class Timepad(BaseParser):
 
         return self.parse(event_id)
 
+    def get_events(self, organization=None, request_params=None):
+        """
+        Parameters:
+        -----------
+        request_params : dict, default None
+            Parameters for timepad events
+            (see. http://dev.timepad.ru/api/get-v1-events/)
+
+            limit : int, default 10
+                1 <= limit <= 100
+                events count
+
+            sort : str
+                sorting field
+
+            category_ids : int or list of ints
+                see Timepad().event_categories
+
+            cities : str or list of str
+                event sity
+        """
+        request_params = request_params or {}
+
+        url = self.events_api + ".json"
+        res = _request_get(url, params=request_params, headers=self.headers)
+
+        return res.json()
+
     def parse(self, event_id):
-        url = self.events_api.format(event_id=event_id)
-        res = requests.get(url=url, headers=self.headers)
-
-        if not res.ok:
-            raise ValueError("Bad request, reason: {}".format(res.reason))
-
-        event = res.json()
+        url = self.events_api + f"/{event_id}"
+        event = _request_get(url, headers=self.headers).json()
 
         return EventData(
             title=remove_html_tags(event["name"]),
@@ -168,6 +200,13 @@ class EventParser:
 
         # (type == EventData)
         return event_data
+
+    def get_events(self, source, *args, **kwargs):
+        parser = _PARSERS[source]
+        if hasattr(parser, "get_events"):
+            return parser.get_events(*args, **kwargs)
+        else:
+            raise ValueError("Parser {} has not get_events method.".format(source))
 
     @property
     def all_parsers(self):
