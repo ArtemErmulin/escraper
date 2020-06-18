@@ -27,6 +27,7 @@ EventData = namedtuple(
         "url",
     ]
 )
+MAX_NUMBER_CONNECTION_ATTEMPTS = 3
 
 
 def parser_register(cls):
@@ -39,7 +40,23 @@ def remove_html_tags(data):
 
 
 def _request_get(*args, **kwargs):
-    response = requests.get(*args, **kwargs)
+    """
+    Send get request with specifica arguments.
+
+    To avoid internet connection issues,
+    will catch ConnectionError and retry.
+    """
+    attempts_count = 0
+
+    while (True):
+        try:
+            response = requests.get(*args, **kwargs)
+            break
+        except requests.ConnectionError as e:
+            if attempts_count == MAX_NUMBER_CONNECTION_ATTEMPTS:
+                raise e
+            attempts_count += 1
+            print("Retry connection...")
 
     if not response.ok:
         raise ValueError("Bad request, reason: {}".format(response.reason))
