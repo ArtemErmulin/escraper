@@ -35,3 +35,14 @@ Get event data as named tuple:
 >>> ep.get_event(source="timepad", event_id=1327190, as_post=False)
 <named tuple event data>
 ```
+
+Get events by parameters (for more see `Timepad.get_events` docstring):
+```python
+>>> params = dict(cities="Санкт-Петербург")
+>>> ep.get_events(source="timepad", request_params=params)
+<list 10 event posts by city "Санкт-Петербург">
+```
+```python
+>>> ep.get_events(source="timepad", request_params=params, as_posts=False)
+<list 10 event data namedtuple by city "Санкт-Петербург">
+```
