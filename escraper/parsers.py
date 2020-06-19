@@ -112,20 +112,70 @@ class Timepad(BaseParser):
         -----------
         request_params : dict, default None
             Parameters for timepad events
-            (see. http://dev.timepad.ru/api/get-v1-events/)
+            (for more details see. http://dev.timepad.ru/api/get-v1-events/)
 
             limit : int, default 10
                 1 <= limit <= 100
                 events count
 
             sort : str
-                sorting field
+                sorting field (id, or starts_at, etc.)
 
             category_ids : int or list of ints
                 see Timepad().event_categories
 
+            category_ids_exclude : in or list of ints
+                see Timepad().event_categories
+                event categories that exclude
+
             cities : str or list of str
-                event sity
+                event city
+
+            keywords : str or list of str
+                event name keywords
+
+            keywords_exclude : str or list of str
+                excluded event name keywords
+
+            access_statuses : str or list of str
+                available statuses:
+                private, draft, link_only, public
+
+            price_min, price_max : int
+                min and max ticket price:
+                for price_min - at least one ticket, that have greater price
+                for price_max - at least one ticket, that have lower price
+
+            starts_at_min, starts_at_max : datetime string format %Y-%m-%dT%H:%M:%S%z
+                event starts dates
+
+            created_at_min, created_at_max : datetime string format %Y-%m-%dT%H:%M:%S%z
+                event created dates
+
+        Examples:
+        ---------
+        >>> tp = Timepad()
+
+        Select by city:
+        >>> params = dict(cities="Санкт-Петербург")
+        >>> tp.get_events(request_params=params)
+        <list of 10 events from Санкт-Петербург>
+
+        Select by category_ids:
+        >>> tp.event_categories
+        [
+            {'id': '217', 'name': 'Бизнес', 'tag': 'business'},
+            {'id': '374', 'name': 'Кино', 'tag': 'cinema'},
+            {'id': '376', 'name': 'Спорт', 'tag': 'sport'},
+            ...
+        ]
+        >>> params = dict(category_ids=[217, 374])
+        >>> tp.get_events(request_params=params)
+        <list of 10 events by business or/and cinema>
+
+        Select by starts_at_min:
+        >>> params = dict(starts_at_min="2020-08-11T00:00:00")
+        <10 events after that starts after "2020-08-11T00:00:00">
         """
         request_params = request_params or {}
 
