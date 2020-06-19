@@ -97,16 +97,20 @@ class Timepad(BaseParser):
             Authorization=f"Bearer {self._token}",
         )
 
-    def get_event(self, event_id=None, event_url=None):
+    def get_event(self, event_id=None, event_url=None, as_post=True):
         if event_url is not None:
             event_id = re.findall(r"(?<=event/)\d*(?=/)", event_url)[0]
 
         if event_id is None:
             raise ValueError("'event_id' or 'event_url' required.")
 
-        return self.parse(event_id)
+        event = self.parse(event_id)
 
-    def get_events(self, organization=None, request_params=None):
+        if as_post:
+            return posting.create(event)
+        return event
+
+    def get_events(self, organization=None, request_params=None, as_posts=True):
         """
         Parameters:
         -----------
@@ -182,11 +186,20 @@ class Timepad(BaseParser):
         url = self.events_api + ".json"
         res = _request_get(url, params=request_params, headers=self.headers)
 
-        return res.json()
+        events_data = list()
+        for event in res.json()["values"]:
+            events_data.append(self.get_event(event_url=event["url"], as_post=as_posts))
+
+        return events_data
 
     def parse(self, event_id):
         url = self.events_api + f"/{event_id}"
         event = _request_get(url, headers=self.headers).json()
+
+        if "poster_image" not in event:
+            poster_imag = None
+        else:
+            poster_imag=event["poster_image"]["default_url"]
 
         return EventData(
             title=remove_html_tags(event["name"]),
@@ -195,7 +208,7 @@ class Timepad(BaseParser):
             post_text=remove_html_tags(event["description_html"]),
             date=self.get_date(event),
             adress=self.get_address(event),
-            poster_imag=event["poster_image"]["default_url"],
+            poster_imag=poster_imag,
             url=event["url"],
         )
 
@@ -205,11 +218,21 @@ class Timepad(BaseParser):
 
     def get_date(self, event):
         starts_at = datetime.strptime(event["starts_at"], STRPTIME)
-        ends_at = datetime.strptime(event["ends_at"], STRPTIME)
 
-        if starts_at.day == ends_at.day:
+        if "ends_at" in event:
+            ends_at = datetime.strptime(event["ends_at"], STRPTIME)
+        else:
+            ends_at = None
+
+        if ends_at is None:
+            ends_at = datetime.now()  # FIXME replace with smthn more clear
+            end_format = ""  # TODO what wrong with this event?
+            start_format = "с %d %B %H:%M "
+
+        elif starts_at.day == ends_at.day:
             start_format = "%d %B %H:%M-"
             end_format = "%H:%M"
+
         else:
             start_format = "с %d %B %H:%M "
             end_format = "по %d %B %H:%M"
@@ -217,10 +240,14 @@ class Timepad(BaseParser):
         return starts_at.strftime(start_format) + ends_at.strftime(end_format)
 
     def get_address(self, event):
-        if event["location"]["city"] == "Без города":
+        if "city" not in event["location"]:
+            address = "Онлайн"
+        elif event["location"]["city"] == "Без города":
             address = "Санкт-Петербург"
+        elif "coordinates" in event["location"]:
+            address = ", ".join(map(str, event["location"]["coordinates"]))  # coordinates, realy?
         elif "address" not in event["location"]:
-            raise TypeError("Unknown address type: {}".format(event["loaction"]))
+            raise TypeError("Unknown address type: {}".format(event["location"]))
         else:
             address = event["location"]["address"]
 
@@ -309,7 +336,7 @@ class EventParser:
     all_parsers : list
         List all available parsers.
     """
-    def get_event(self, source, as_post=True, *args, **kwargs):
+    def get_event(self, source, *args, **kwargs):
         if not isinstance(source, str):
             raise TypeError(
                 "Invalid 'source' argument type: required 'str', given {}."
@@ -321,14 +348,7 @@ class EventParser:
         else:
             parser = _PARSERS[source]
 
-        event_data = parser.get_event(*args, **kwargs)
-
-        if as_post:
-            # create post layout (type == str)
-            return posting.create(event_data)
-
-        # (type == EventData)
-        return event_data
+        return parser.get_event(*args, **kwargs)
 
     def get_events(self, source, *args, **kwargs):
         parser = _PARSERS[source]
