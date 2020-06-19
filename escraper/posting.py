@@ -9,7 +9,12 @@ def create(ed):
         parsers.EventData
     """
 
-    title = f"[ ]({ed.poster_imag}) *{ed.title_date}* {ed.title}\n\n"
+    if ed.poster_imag is None:
+        imag = ""
+    else:
+        imag = f"[ ]({ed.poster_imag}) "
+
+    title = f"{imag}*{ed.title_date}* {ed.title}\n\n"
 
     footer = (
         "\n"

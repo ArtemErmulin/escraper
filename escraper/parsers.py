@@ -27,6 +27,7 @@ EventData = namedtuple(
         "url",
     ]
 )
+MAX_NUMBER_CONNECTION_ATTEMPTS = 3
 
 
 def parser_register(cls):
@@ -36,6 +37,31 @@ def parser_register(cls):
 
 def remove_html_tags(data):
     return BeautifulSoup(data, "html.parser").text
+
+
+def _request_get(*args, **kwargs):
+    """
+    Send get request with specifica arguments.
+
+    To avoid internet connection issues,
+    will catch ConnectionError and retry.
+    """
+    attempts_count = 0
+
+    while (True):
+        try:
+            response = requests.get(*args, **kwargs)
+            break
+        except requests.ConnectionError as e:
+            if attempts_count == MAX_NUMBER_CONNECTION_ATTEMPTS:
+                raise e
+            attempts_count += 1
+            print("Retry connection...")
+
+    if not response.ok:
+        raise ValueError("Bad request, reason: {}".format(response.reason))
+
+    return response
 
 
 @parser_register
@@ -59,7 +85,7 @@ class Timepad(BaseParser):
     """
     name = "timepad"
     url = "www.timepad.ru"
-    events_api = "https://api.timepad.ru/v1/events/{event_id}"
+    events_api = "https://api.timepad.ru/v1/events"
 
     def __init__(self):
         # TODO add as enviroment variable
@@ -71,23 +97,109 @@ class Timepad(BaseParser):
             Authorization=f"Bearer {self._token}",
         )
 
-    def get_event(self, event_id=None, event_url=None):
+    def get_event(self, event_id=None, event_url=None, as_post=True):
         if event_url is not None:
             event_id = re.findall(r"(?<=event/)\d*(?=/)", event_url)[0]
 
         if event_id is None:
             raise ValueError("'event_id' or 'event_url' required.")
 
-        return self.parse(event_id)
+        event = self.parse(event_id)
+
+        if as_post:
+            return posting.create(event)
+        return event
+
+    def get_events(self, organization=None, request_params=None, as_posts=True):
+        """
+        Parameters:
+        -----------
+        request_params : dict, default None
+            Parameters for timepad events
+            (for more details see. http://dev.timepad.ru/api/get-v1-events/)
+
+            limit : int, default 10
+                1 <= limit <= 100
+                events count
+
+            sort : str
+                sorting field (id, or starts_at, etc.)
+
+            category_ids : int or list of ints
+                see Timepad().event_categories
+
+            category_ids_exclude : in or list of ints
+                see Timepad().event_categories
+                event categories that exclude
+
+            cities : str or list of str
+                event city
+
+            keywords : str or list of str
+                event name keywords
+
+            keywords_exclude : str or list of str
+                excluded event name keywords
+
+            access_statuses : str or list of str
+                available statuses:
+                private, draft, link_only, public
+
+            price_min, price_max : int
+                min and max ticket price:
+                for price_min - at least one ticket, that have greater price
+                for price_max - at least one ticket, that have lower price
+
+            starts_at_min, starts_at_max : datetime string format %Y-%m-%dT%H:%M:%S%z
+                event starts dates
+
+            created_at_min, created_at_max : datetime string format %Y-%m-%dT%H:%M:%S%z
+                event created dates
+
+        Examples:
+        ---------
+        >>> tp = Timepad()
+
+        Select by city:
+        >>> params = dict(cities="Санкт-Петербург")
+        >>> tp.get_events(request_params=params)
+        <list of 10 events from Санкт-Петербург>
+
+        Select by category_ids:
+        >>> tp.event_categories
+        [
+            {'id': '217', 'name': 'Бизнес', 'tag': 'business'},
+            {'id': '374', 'name': 'Кино', 'tag': 'cinema'},
+            {'id': '376', 'name': 'Спорт', 'tag': 'sport'},
+            ...
+        ]
+        >>> params = dict(category_ids=[217, 374])
+        >>> tp.get_events(request_params=params)
+        <list of 10 events by business or/and cinema>
+
+        Select by starts_at_min:
+        >>> params = dict(starts_at_min="2020-08-11T00:00:00")
+        <10 events after that starts after "2020-08-11T00:00:00">
+        """
+        request_params = request_params or {}
+
+        url = self.events_api + ".json"
+        res = _request_get(url, params=request_params, headers=self.headers)
+
+        events_data = list()
+        for event in res.json()["values"]:
+            events_data.append(self.get_event(event_url=event["url"], as_post=as_posts))
+
+        return events_data
 
     def parse(self, event_id):
-        url = self.events_api.format(event_id=event_id)
-        res = requests.get(url=url, headers=self.headers)
+        url = self.events_api + f"/{event_id}"
+        event = _request_get(url, headers=self.headers).json()
 
-        if not res.ok:
-            raise ValueError("Bad request, reason: {}".format(res.reason))
-
-        event = res.json()
+        if "poster_image" not in event:
+            poster_imag = None
+        else:
+            poster_imag=event["poster_image"]["default_url"]
 
         return EventData(
             title=remove_html_tags(event["name"]),
@@ -96,7 +208,7 @@ class Timepad(BaseParser):
             post_text=remove_html_tags(event["description_html"]),
             date=self.get_date(event),
             adress=self.get_address(event),
-            poster_imag=event["poster_image"]["default_url"],
+            poster_imag=poster_imag,
             url=event["url"],
         )
 
@@ -106,11 +218,21 @@ class Timepad(BaseParser):
 
     def get_date(self, event):
         starts_at = datetime.strptime(event["starts_at"], STRPTIME)
-        ends_at = datetime.strptime(event["ends_at"], STRPTIME)
 
-        if starts_at.day == ends_at.day:
+        if "ends_at" in event:
+            ends_at = datetime.strptime(event["ends_at"], STRPTIME)
+        else:
+            ends_at = None
+
+        if ends_at is None:
+            ends_at = datetime.now()  # FIXME replace with smthn more clear
+            end_format = ""  # TODO what wrong with this event?
+            start_format = "с %d %B %H:%M "
+
+        elif starts_at.day == ends_at.day:
             start_format = "%d %B %H:%M-"
             end_format = "%H:%M"
+
         else:
             start_format = "с %d %B %H:%M "
             end_format = "по %d %B %H:%M"
@@ -118,14 +240,80 @@ class Timepad(BaseParser):
         return starts_at.strftime(start_format) + ends_at.strftime(end_format)
 
     def get_address(self, event):
-        if event["location"]["city"] == "Без города":
+        if "city" not in event["location"]:
+            address = "Онлайн"
+        elif event["location"]["city"] == "Без города":
             address = "Санкт-Петербург"
+        elif "coordinates" in event["location"]:
+            address = ", ".join(map(str, event["location"]["coordinates"]))  # coordinates, realy?
         elif "address" not in event["location"]:
-            raise TypeError("Unknown address type: {}".format(event["loaction"]))
+            raise TypeError("Unknown address type: {}".format(event["location"]))
         else:
             address = event["location"]["address"]
 
         return remove_html_tags(address)
+
+    @property
+    def event_categories(self):
+        """
+        Getting list of events categories.
+
+        Return:
+        -------
+        [dict(id=str, name=str, tag=str), ...]
+
+        Example:
+        --------
+        [
+            {'id': '217', 'name': 'Бизнес', 'tag': 'business'},
+            {'id': '374', 'name': 'Кино', 'tag': 'cinema'},
+            {'id': '376', 'name': 'Спорт', 'tag': 'sport'},
+            ...
+        ]
+        """
+        url = "https://api.timepad.ru/v1/dictionary/event_categories"
+        return _request_get(url, headers=self.headers).json()["values"]
+
+    @property
+    def event_statuses(self):
+        """
+        Getting list of events statuses.
+
+        Return:
+        -------
+        [dict(id=str, name=str), ...]
+
+        Example:
+        --------
+        [
+            {'id': 'ok', 'name': 'Ok'},
+            {'id': 'deleted', 'name': 'Удалена'},
+            {'id': 'inactive', 'name': 'Неактивна'}
+        ]
+        """
+        url = "https://api.timepad.ru/v1/dictionary/event_statuses"
+        return _request_get(url, headers=self.headers).json()["values"]
+
+    @property
+    def tickets_statuses(self):
+        """
+        Getting list of tickets statuses.
+
+        Return:
+        -------
+        [dict(id=str, name=str), ...]
+
+        Example:
+        --------
+        [
+            {'id': 'notpaid', 'name': 'просрочено'},
+            {'id': 'ok', 'name': 'бесплатно'},
+            {'id': 'paid', 'name': 'оплачено'},
+            ...
+        ]
+        """
+        url = "https://api.timepad.ru/v1/dictionary/tickets_statuses"
+        return _request_get(url, headers=self.headers).json()["values"]
 
 
 class EventParser:
@@ -148,7 +336,7 @@ class EventParser:
     all_parsers : list
         List all available parsers.
     """
-    def get_event(self, source, as_post=True, *args, **kwargs):
+    def get_event(self, source, *args, **kwargs):
         if not isinstance(source, str):
             raise TypeError(
                 "Invalid 'source' argument type: required 'str', given {}."
@@ -160,14 +348,14 @@ class EventParser:
         else:
             parser = _PARSERS[source]
 
-        event_data = parser.get_event(*args, **kwargs)
+        return parser.get_event(*args, **kwargs)
 
-        if as_post:
-            # create post layout (type == str)
-            return posting.create(event_data)
-
-        # (type == EventData)
-        return event_data
+    def get_events(self, source, *args, **kwargs):
+        parser = _PARSERS[source]
+        if hasattr(parser, "get_events"):
+            return parser.get_events(*args, **kwargs)
+        else:
+            raise ValueError("Parser {} has not get_events method.".format(source))
 
     @property
     def all_parsers(self):
