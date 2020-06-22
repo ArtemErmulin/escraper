@@ -257,6 +257,8 @@ class Timepad(BaseParser):
     def get_address(self, event):
         if "city" not in event["location"]:
             address = "Онлайн"
+        elif "city" in event["location"] and "address" not in event["location"]:
+            address = "Санкт-Петербург"
         elif event["location"]["city"] == "Без города":
             address = "Санкт-Петербург"
         elif "coordinates" in event["location"]:
