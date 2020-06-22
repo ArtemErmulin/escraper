@@ -5,7 +5,7 @@ with open("requirements.txt") as fp:
     install_requires = fp.read().splitlines()
 
 setuptools.setup(
-    name="event-scraper",
+    name="escraper",
     version="0.0.2",
     packages=setuptools.find_packages(),
     install_requires=install_requires,

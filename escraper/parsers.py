@@ -1,7 +1,6 @@
 from collections import namedtuple
 from datetime import datetime
 import os
-import locale
 import random
 import re
 
@@ -9,10 +8,10 @@ import requests
 from bs4 import BeautifulSoup
 
 from .base import BaseParser
+from .utils import weekday_name, month_name
 from . import posting
 
 
-locale.setlocale(locale.LC_ALL, "ru_RU.UTF-8")  # for month and weekday names
 STRPTIME = "%Y-%m-%dT%H:%M:%S%z"
 _PARSERS = dict()
 EventData = namedtuple(
@@ -88,10 +87,13 @@ class Timepad(BaseParser):
     events_api = "https://api.timepad.ru/v1/events"
 
     def __init__(self):
-        # TODO add as enviroment variable
-        path = os.path.join(os.path.dirname(__file__), "misk/timepad_token")
-        with open(path) as f:
-            self._token = f.readline()
+        if "TIMEPAD_TOKEN" in os.environ:
+            self._token = os.environ.get("TIMEPAD_TOKEN")
+
+        else:
+            path = os.path.join(os.path.dirname(__file__), "misk/timepad_token")
+            with open(path) as f:
+                self._token = f.readline()
 
         self.headers = dict(
             Authorization=f"Bearer {self._token}",
@@ -199,7 +201,7 @@ class Timepad(BaseParser):
         if "poster_image" not in event:
             poster_imag = None
         else:
-            poster_imag=event["poster_image"]["default_url"]
+            poster_imag = event["poster_image"]["default_url"]
 
         return EventData(
             title=remove_html_tags(event["name"]),
@@ -214,30 +216,43 @@ class Timepad(BaseParser):
 
     def get_title_date(self, event):
         starts_at = datetime.strptime(event["starts_at"], STRPTIME)
-        return starts_at.strftime("%A %d %B")
+        return (
+            "{dayname} {day} {month}".format(
+                dayname=weekday_name(starts_at),
+                day=starts_at.day,
+                month=month_name(starts_at),
+            )
+        )
 
     def get_date(self, event):
         starts_at = datetime.strptime(event["starts_at"], STRPTIME)
 
+        s_day = starts_at.day
+        s_month = month_name(starts_at)
+        s_hour = starts_at.hour
+        s_minute = starts_at.minute
+
         if "ends_at" in event:
             ends_at = datetime.strptime(event["ends_at"], STRPTIME)
-        else:
-            ends_at = None
 
-        if ends_at is None:
-            ends_at = datetime.now()  # FIXME replace with smthn more clear
+            e_day = ends_at.day
+            e_month = month_name(ends_at)
+            e_hour = ends_at.hour
+            e_minute = ends_at.minute
+
+            if s_day == e_day:
+                start_format = f"{s_day} {s_month} {s_hour}:{s_minute}-"
+                end_format = f"{e_hour}:{e_minute}"
+
+            else:
+                start_format = f"с {s_day} {s_month} {s_hour}:{s_minute} "
+                end_format = f"по {e_day} {e_month} {e_hour}:{e_minute}"
+
+        else:
             end_format = ""  # TODO what wrong with this event?
-            start_format = "с %d %B %H:%M "
+            start_format = f"с {s_day} {s_month} {s_hour}:{s_minute} "
 
-        elif starts_at.day == ends_at.day:
-            start_format = "%d %B %H:%M-"
-            end_format = "%H:%M"
-
-        else:
-            start_format = "с %d %B %H:%M "
-            end_format = "по %d %B %H:%M"
-
-        return starts_at.strftime(start_format) + ends_at.strftime(end_format)
+        return start_format + end_format
 
     def get_address(self, event):
         if "city" not in event["location"]:
@@ -324,7 +339,7 @@ class EventParser:
     --------
     get_event(source, as_post=True, *args, **kwargs)
         Getting event parameters from source.
-        
+
         source : string
             Source site, one of EventParser.all_parsers.
 
