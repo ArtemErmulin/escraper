@@ -217,28 +217,18 @@ class Timepad(BaseParser):
         )
 
     def get_price(self, event):
-        price={}
-        tickets=event["ticket_types"]
-        for ticket in tickets:
-            if ticket['price']==0:
-                price['free']=1
-            elif 'price' in price:
-                if ticket['price']<price['price']:
-                    price['price']=ticket['price']
-            else:
-                    price['price']=ticket['price']
-            #if ticket['status']!='ok': #to-do: check statuses
-            #        price['rem']=1
-
-        if 'free' in price:
-            price_min='Бесплатно'
-        elif 'price' in price:
-            price_min=f"{price['price']}₽"
-        #elif 'rem' in price:
-        #    price_min='Билетов нет'
+        if event['registration_data']['is_registration_open']==True:
+            price_min=event['registration_data']['price_min']
         else:
-            price_min='Информации нет'
-        return price_min
+            price_min=-1
+            
+        if price_min==0:
+            price_text='Бесплатно'
+        elif price_min>0:
+            price_text=f"{price_min}₽"
+        else:
+            price_text='Билетов нет'
+        return price_text
 
 
     def get_title_date(self, event):
