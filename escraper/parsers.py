@@ -221,6 +221,7 @@ class Timepad(BaseParser):
             price_min=event['registration_data']['price_min']
         else:
             price_min=-1
+        
             
         if price_min==0:
             price_text='Бесплатно'
@@ -258,16 +259,16 @@ class Timepad(BaseParser):
             e_minute = ends_at.minute
 
             if s_day == e_day:
-                start_format = f"{s_day} {s_month} {s_hour}:{s_minute}-"
+                start_format = f"{s_day} {s_month} {s_hour:02}:{s_minute:02}-"
                 end_format = f"{e_hour}:{e_minute}"
 
             else:
-                start_format = f"с {s_day} {s_month} {s_hour}:{s_minute} "
-                end_format = f"по {e_day} {e_month} {e_hour}:{e_minute}"
+                start_format = f"с {s_day} {s_month} {s_hour:02}:{s_minute:02} "
+                end_format = f"по {e_day} {e_month} {e_hour:02}:{e_minute:02}"
 
         else:
             end_format = ""  # TODO what wrong with this event?
-            start_format = f"с {s_day} {s_month} {s_hour}:{s_minute} "
+            start_format = f"с {s_day} {s_month} {s_hour:02}:{s_minute:02} "
 
         return start_format + end_format
 
