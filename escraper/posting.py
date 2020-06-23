@@ -20,8 +20,16 @@ def create(ed):
         "\n"
         f'*Где:* {ed.place_name}, {ed.adress} \n'
         f'*Когда:* {ed.date} \n'
-        f'*Вход свободный* [по предварительной регистрации]({ed.url})'
+        f'*Вход:* [{ed.price}]({ed.url})'
     )
+
+    # if ed.price==:
+    #     footer +=f'Регистрация ограничена: [подробности](ed.url)'
+    # elif ed.price==0:
+    #     footer +=f'*Вход свободный* [по предварительной регистрации]({ed.url})'
+    # elif ed.price>0:
+    #     footer +=f'*Вход:* [от {ed.price}₽]({ed.url})'
+    
 
     full_text = title + ed.post_text + footer
     return full_text
