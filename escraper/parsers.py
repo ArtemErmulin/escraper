@@ -10,7 +10,7 @@ from bs4 import BeautifulSoup
 from .base import BaseParser
 from .utils import weekday_name, month_name
 from . import posting
-
+from .saving import add2db,checkdb,whatdate
 
 STRPTIME = "%Y-%m-%dT%H:%M:%S%z"
 _PARSERS = dict()
@@ -247,7 +247,20 @@ class Timepad(BaseParser):
             ))
         return events4db
 
+    def events4day(self, monthday=0, limit=10, price_max=500): #make to choose day
+        date_4_searching=whatdate(monthday)
+        params={'limit':limit,
+        'price_max':price_max,
+        'starts_at_min': f"{date_4_searching}T00:00:00",
+        'starts_at_max': f"{date_4_searching}T23:59:59", 
+        'category_ids_exclude':[217,376,399,453,1315]}
 
+        events=self.get_events4db(request_params=params)
+        add2db(events)
+
+    def putInDb(self):
+        events4day()
+        return 'Q'
 
 
     def parse(self, event_id):
