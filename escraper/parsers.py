@@ -24,6 +24,7 @@ EventData = namedtuple(
         "adress",
         "poster_imag",
         "url",
+        "price",
     ]
 )
 MAX_NUMBER_CONNECTION_ATTEMPTS = 3
@@ -212,7 +213,33 @@ class Timepad(BaseParser):
             adress=self.get_address(event),
             poster_imag=poster_imag,
             url=event["url"],
+            price=self.get_price(event),
         )
+
+    def get_price(self, event):
+        price={}
+        tickets=event["ticket_types"]
+        for ticket in tickets:
+            if ticket['price']==0:
+                price['free']=1
+            elif 'price' in price:
+                if ticket['price']<price['price']:
+                    price['price']=ticket['price']
+            else:
+                    price['price']=ticket['price']
+            #if ticket['status']!='ok': #to-do: check statuses
+            #        price['rem']=1
+
+        if 'free' in price:
+            price_min='Бесплатно'
+        elif 'price' in price:
+            price_min=f"{price['price']}₽"
+        #elif 'rem' in price:
+        #    price_min='Билетов нет'
+        else:
+            price_min='Информации нет'
+        return price_min
+
 
     def get_title_date(self, event):
         starts_at = datetime.strptime(event["starts_at"], STRPTIME)
