@@ -27,6 +27,25 @@ EventData = namedtuple(
         "price",
     ]
 )
+
+
+EventData4db = namedtuple(
+    "event_data4db", [
+            "title",
+            "date",
+            #"date_end",
+            "place_name",
+            "post_text",
+            "adress",
+            "poster_imag",
+            "url",
+            "price",
+            "availability",
+    ]
+)
+
+
+
 MAX_NUMBER_CONNECTION_ATTEMPTS = 3
 
 
@@ -195,6 +214,42 @@ class Timepad(BaseParser):
 
         return events_data
 
+
+
+    def get_events4db(self, organization=None, request_params=None):
+        request_params = request_params or {}
+
+        url = self.events_api + ".json"
+        res = _request_get(url, params=request_params, headers=self.headers)
+
+        events4db=[]
+        for event_f in res.json()["values"]:
+            event_id=event_f['id']
+            url = self.events_api + f"/{event_id}"
+            event = _request_get(url, headers=self.headers).json()
+
+
+            if "poster_image" not in event:
+                poster_imag = None
+            else:
+                poster_imag = event["poster_image"]["default_url"]
+
+            events4db.append(EventData4db(
+            title=remove_html_tags(event["name"]),
+            date=event["starts_at"],
+            place_name=remove_html_tags(event["organization"]["name"]),
+            post_text=remove_html_tags(event["description_html"]),
+            adress=self.get_address(event),
+            poster_imag=poster_imag,
+            url=event["url"],
+            price = event['registration_data']['price_min'],
+            availability = event['registration_data']['is_registration_open'],
+            ))
+        return events4db
+
+
+
+
     def parse(self, event_id):
         url = self.events_api + f"/{event_id}"
         event = _request_get(url, headers=self.headers).json()
@@ -222,7 +277,7 @@ class Timepad(BaseParser):
         else:
             price_min=-1
         
-            
+
         if price_min==0:
             price_text='Бесплатно'
         elif price_min>0:
@@ -231,12 +286,13 @@ class Timepad(BaseParser):
             price_text='Билетов нет'
         return price_text
 
+    def get_date4DB(self,event):
+        starts_at = datetime.strptime(event["starts_at"], STRPTIME)
 
     def get_title_date(self, event):
         starts_at = datetime.strptime(event["starts_at"], STRPTIME)
         return (
-            "{dayname} {day} {month}".format(
-                dayname=weekday_name(starts_at),
+            "{day} {month}".format(
                 day=starts_at.day,
                 month=month_name(starts_at),
             )
@@ -245,6 +301,7 @@ class Timepad(BaseParser):
     def get_date(self, event):
         starts_at = datetime.strptime(event["starts_at"], STRPTIME)
 
+        s_weekday = weekday_name(starts_at),
         s_day = starts_at.day
         s_month = month_name(starts_at)
         s_hour = starts_at.hour
@@ -259,16 +316,16 @@ class Timepad(BaseParser):
             e_minute = ends_at.minute
 
             if s_day == e_day:
-                start_format = f"{s_day} {s_month} {s_hour:02}:{s_minute:02}-"
-                end_format = f"{e_hour}:{e_minute}"
+                start_format = f"{s_weekday}, {s_day} {s_month} {s_hour:02}:{s_minute:02}-"
+                end_format = f"{e_hour:02}:{e_minute:02}" 
 
             else:
                 start_format = f"с {s_day} {s_month} {s_hour:02}:{s_minute:02} "
                 end_format = f"по {e_day} {e_month} {e_hour:02}:{e_minute:02}"
 
         else:
-            end_format = ""  # TODO what wrong with this event?
-            start_format = f"с {s_day} {s_month} {s_hour:02}:{s_minute:02} "
+            end_format = ""  # TODO what wrong with this event? 
+            start_format = f"{s_weekday}, {s_day} {s_month} {s_hour:02}:{s_minute:02}"
 
         return start_format + end_format
 
