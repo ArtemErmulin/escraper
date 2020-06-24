@@ -1,6 +1,7 @@
 __pycache__/
 misk/
 .vscode/
+eventDB.sqlite
 
 
 
