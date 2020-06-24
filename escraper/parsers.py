@@ -259,7 +259,7 @@ class Timepad(BaseParser):
         add2db(events)
 
     def putInDb(self):
-        events4day()
+        self.events4day()
         return 'Q'
 
 
