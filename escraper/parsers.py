@@ -13,7 +13,7 @@ from . import posting
 from .saving import add2db,checkdb,whatdate
 
 STRPTIME = "%Y-%m-%dT%H:%M:%S%z"
-_PARSERS = dict()
+all_parsers = dict()
 EventData = namedtuple(
     "event_data", [
         "title",
@@ -51,7 +51,7 @@ MAX_NUMBER_CONNECTION_ATTEMPTS = 3
 
 
 def parser_register(cls):
-    _PARSERS[cls.name] = cls()
+    all_parsers[cls.name.lower()] = cls
     return cls
 
 
@@ -427,49 +427,3 @@ class Timepad(BaseParser):
         """
         url = "https://api.timepad.ru/v1/dictionary/tickets_statuses"
         return _request_get(url, headers=self.headers).json()["values"]
-
-
-class EventParser:
-    """
-    Main parser for all sites.
-
-    Methods:
-    --------
-    get_event(source, as_post=True, *args, **kwargs)
-        Getting event parameters from source.
-
-        source : string
-            Source site, one of EventParser.all_parsers.
-
-        as_post : bool, default True
-            Convert event parameters to channel post layout.
-
-        *args, **kwargs : source-parser specific parameters
-
-    all_parsers : list
-        List all available parsers.
-    """
-    def get_event(self, source, *args, **kwargs):
-        if not isinstance(source, str):
-            raise TypeError(
-                "Invalid 'source' argument type: required 'str', given {}."
-                .format(type(source))
-            )
-
-        if source not in _PARSERS:
-            raise ValueError("Unknown source.")
-        else:
-            parser = _PARSERS[source]
-
-        return parser.get_event(*args, **kwargs)
-
-    def get_events(self, source, *args, **kwargs):
-        parser = _PARSERS[source]
-        if hasattr(parser, "get_events"):
-            return parser.get_events(*args, **kwargs)
-        else:
-            raise ValueError("Parser {} has not get_events method.".format(source))
-
-    @property
-    def all_parsers(self):
-        return list(_PARSERS.keys())
