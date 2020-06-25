@@ -148,23 +148,23 @@ class Timepad(BaseParser):
             sort : str
                 sorting field (id, or starts_at, etc.)
 
-            category_ids : int or list of ints
+            category_ids : str like "id1, id2, id3, ..."
                 see Timepad().event_categories
 
-            category_ids_exclude : in or list of ints
+            category_ids_exclude : str like "id1, id2, id3, ..."
                 see Timepad().event_categories
                 event categories that exclude
 
-            cities : str or list of str
+            cities : str like "city1, city2, city3, ..."
                 event city
 
-            keywords : str or list of str
+            keywords : str like "key1, key2, key3, ..."
                 event name keywords
 
-            keywords_exclude : str or list of str
+            keywords_exclude : str like "key1, key2, key3, ..."
                 excluded event name keywords
 
-            access_statuses : str or list of str
+            access_statuses : str like "status1, status2, ..."
                 available statuses:
                 private, draft, link_only, public
 
@@ -196,7 +196,7 @@ class Timepad(BaseParser):
             {'id': '376', 'name': 'Спорт', 'tag': 'sport'},
             ...
         ]
-        >>> params = dict(category_ids=[217, 374])
+        >>> params = dict(category_ids="217, 374"])
         >>> tp.get_events(request_params=params)
         <list of 10 events by business or/and cinema>
 
@@ -291,7 +291,6 @@ class Timepad(BaseParser):
             price_min=event['registration_data']['price_min']
         else:
             price_min=-1
-        
 
         if price_min==0:
             price_text='Бесплатно'
