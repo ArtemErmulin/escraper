@@ -34,6 +34,7 @@ EventData4db = namedtuple(
             "title",
             "date",
             #"date_end",
+            "category",
             "place_name",
             "post_text",
             "adress",
@@ -237,6 +238,7 @@ class Timepad(BaseParser):
             events4db.append(EventData4db(
             title=remove_html_tags(event["name"]),
             date=event["starts_at"],
+            category=event["categories"][0]['name'],
             place_name=remove_html_tags(event["organization"]["name"]),
             post_text=remove_html_tags(event["description_html"]),
             adress=self.get_address(event),
@@ -253,7 +255,7 @@ class Timepad(BaseParser):
         'price_max':price_max,
         'starts_at_min': f"{date_4_searching}T00:00:00",
         'starts_at_max': f"{date_4_searching}T23:59:59", 
-        'category_ids_exclude':[217,376,399,453,1315]}
+        'category_ids_exclude':"217,376,399,453,1315"}
 
         events=self.get_events4db(request_params=params)
         add2db(events)
