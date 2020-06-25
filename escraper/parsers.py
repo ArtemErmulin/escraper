@@ -107,14 +107,21 @@ class Timepad(BaseParser):
     url = "www.timepad.ru"
     events_api = "https://api.timepad.ru/v1/events"
 
-    def __init__(self):
-        if "TIMEPAD_TOKEN" in os.environ:
-            self._token = os.environ.get("TIMEPAD_TOKEN")
+    def __init__(self, token=None):
+        if token is None:
+            if "TIMEPAD_TOKEN" in os.environ:
+                self._token = os.environ.get("TIMEPAD_TOKEN")
+
+            elif "misk" in os.listdir(os.path.dirname(__file__)):
+                path = os.path.join(os.path.dirname(__file__), "misk/timepad_token")
+                with open(path) as f:
+                    self._token = f.readline()
+
+            else:
+                raise ValueError("Timepad token not found.")
 
         else:
-            path = os.path.join(os.path.dirname(__file__), "misk/timepad_token")
-            with open(path) as f:
-                self._token = f.readline()
+            self._token = token
 
         self.headers = dict(
             Authorization=f"Bearer {self._token}",
