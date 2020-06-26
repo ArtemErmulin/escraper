@@ -1,7 +1,7 @@
 # escraper
 Event Scraper
 
-**Don't stable, working in progress.**
+**Don't stable, work in progress.**
 
 Istalling:
 ```bash
