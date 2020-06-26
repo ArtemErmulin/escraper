@@ -1,6 +1,8 @@
 # escraper
 Event Scraper
 
+**Don't stable, working in progress.**
+
 Istalling:
 ```bash
 pip install -e git+ssh://git@github.com/ArtemErmulin/escraper.git@master#egg=escraper
