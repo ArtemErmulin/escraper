@@ -1,5 +1,5 @@
 from collections import namedtuple
-from datetime import datetime
+from datetime import datetime,date
 import os
 import random
 import re
@@ -28,22 +28,32 @@ EventData = namedtuple(
     ]
 )
 
-
 EventData4db = namedtuple(
-    "event_data4db", [
-            "title",
-            "date",
-            #"date_end",
-            "category",
-            "place_name",
-            "post_text",
-            "adress",
-            "poster_imag",
-            "url",
-            "price",
-            "availability",
-    ]
+     "event_data4db", [
+     "id",
+     "date",
+     "title",
+     "category",
+     "poster_imag",
+     "url",
+     ]
 )
+
+# EventData4db = namedtuple(
+#     "event_data4db", [
+#             "title",
+#             "date",
+#             #"date_end",
+#             "category",
+#             "place_name",
+#             "post_text",
+#             "adress",
+#             "poster_imag",
+#             "url",
+#             "price",
+#             "availability",
+#     ]
+# )
 
 
 
@@ -231,29 +241,23 @@ class Timepad(BaseParser):
         res = _request_get(url, params=request_params, headers=self.headers)
 
         events4db=[]
-        for event_f in res.json()["values"]:
-            event_id=event_f['id']
-            url = self.events_api + f"/{event_id}"
-            event = _request_get(url, headers=self.headers).json()
-
-
+        for event in res.json()["values"]:
+            event_id=event['id']
+            
             if "poster_image" not in event:
                 poster_imag = None
             else:
                 poster_imag = event["poster_image"]["default_url"]
+            date_s=datetime.strptime(event["starts_at"], STRPTIME)
 
             events4db.append(EventData4db(
-            title=remove_html_tags(event["name"]),
-            date=event["starts_at"],
-            category=event["categories"][0]['name'],
-            place_name=remove_html_tags(event["organization"]["name"]),
-            post_text=remove_html_tags(event["description_html"]),
-            adress=self.get_address(event),
-            poster_imag=poster_imag,
-            url=event["url"],
-            price = event['registration_data']['price_min'],
-            availability = event['registration_data']['is_registration_open'],
-            ))
+                id=event['id'],
+                date=date_s.date(),
+                title=remove_html_tags(event["name"]),
+                category=event["categories"][0]['name'],
+                poster_imag=poster_imag,
+                url=event["url"]
+                ))
         return events4db
 
     def events4day(self, monthday=0, limit=10, price_max=500): #make to choose day
