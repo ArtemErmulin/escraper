@@ -5,7 +5,7 @@ Event Scraper
 
 Istalling:
 ```bash
-pip install git+ssh://git@github.com/ArtemErmulin/escraper.git@master#egg=escraper-0.0.3
+pip install git+ssh://git@github.com/ArtemErmulin/escraper.git@master#egg=escraper-0.0.4
 ```
 
 # Usage
