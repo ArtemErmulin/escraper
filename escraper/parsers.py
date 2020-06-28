@@ -265,7 +265,6 @@ class Timepad(BaseParser):
         'category_ids_exclude':"217,376,399,453,1315"}
 
         events=self.get_events4db(request_params=params)
-        add2db(events)
 
     def putInDb(self):
         self.events4day()
