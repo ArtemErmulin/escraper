@@ -268,7 +268,7 @@ class Timepad(BaseParser):
         'starts_at_max': f"{date_4_searching}T23:59:59", 
         'category_ids_exclude':"217,376,399,453,1315"}
 
-        events=self.get_events4db(request_params=params)
+        return self.get_events4db(request_params=params)
 
     def putInDb(self):
         self.events4day()
