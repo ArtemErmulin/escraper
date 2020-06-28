@@ -1,1 +1,1 @@
-from .parsers import EventParser
+from .parsers import all_parsers

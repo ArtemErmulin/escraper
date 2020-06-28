@@ -1,5 +1,5 @@
-from escraper import EventParser
+from escraper.parsers import Timepad
 
 
 def test_auth():
-    ep = EventParser()
+    pass
