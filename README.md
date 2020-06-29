@@ -5,7 +5,7 @@ Event Scraper
 
 Istalling:
 ```bash
-pip install git+ssh://git@github.com/ArtemErmulin/escraper.git@master#egg=escraper-0.0.4
+pip install git+ssh://git@github.com/ArtemErmulin/escraper.git@master#egg=escraper-0.0.5
 ```
 
 # Usage
@@ -46,6 +46,6 @@ Get events by parameters (for more see `Timepad.get_events` docstring):
 <list 10 event posts by city "Санкт-Петербург">
 ```
 ```python
->>> timepad.get_events(request_params=params, as_posts=False)
+>>> timepad.get_events(request_params=params)
 <list 10 event data namedtuple by city "Санкт-Петербург">
 ```

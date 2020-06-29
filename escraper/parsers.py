@@ -1,6 +1,7 @@
 from collections import namedtuple
-from datetime import datetime,date
+from datetime import datetime, date
 import os
+import itertools
 import random
 import re
 
@@ -8,55 +9,34 @@ import requests
 from bs4 import BeautifulSoup
 
 from .base import BaseParser
-from .utils import weekday_name, month_name
+from .utils import weekday_name, month_name, whatdate
 from . import posting
-from .saving import add2db,checkdb,whatdate
 
-STRPTIME = "%Y-%m-%dT%H:%M:%S%z"
+
 all_parsers = dict()
-EventData = namedtuple(
-    "event_data", [
+STRPTIME = "%Y-%m-%dT%H:%M:%S%z"
+EVENT_TAGS = dict(
+    to_post=frozenset([
         "title",
         "title_date",
         "place_name",
         "post_text",
-        "date",
+        "date_from_to",
         "adress",
         "poster_imag",
         "url",
         "price",
-    ]
+    ]),
+    to_database=frozenset([
+        "id",
+        "date",
+        "title",
+        "category",
+        "poster_imag",
+        "url",
+    ])
 )
-
-EventData4db = namedtuple(
-     "event_data4db", [
-     "id",
-     "date",
-     "title",
-     "category",
-     "poster_imag",
-     "url",
-     ]
-)
-
-# EventData4db = namedtuple(
-#     "event_data4db", [
-#             "title",
-#             "date",
-#             #"date_end",
-#             "category",
-#             "place_name",
-#             "post_text",
-#             "adress",
-#             "poster_imag",
-#             "url",
-#             "price",
-#             "availability",
-#     ]
-# )
-
-
-
+ALL_EVENT_TAGS = set(itertools.chain(*[s for s in EVENT_TAGS.values()]))
 MAX_NUMBER_CONNECTION_ATTEMPTS = 3
 
 
@@ -78,7 +58,7 @@ def _request_get(*args, **kwargs):
     """
     attempts_count = 0
 
-    while (True):
+    while True:
         try:
             response = requests.get(*args, **kwargs)
             break
@@ -113,6 +93,7 @@ class Timepad(BaseParser):
         event_url : str, default None
             url to event on timepad.ru
     """
+
     name = "timepad"
     url = "www.timepad.ru"
     events_api = "https://api.timepad.ru/v1/events"
@@ -137,20 +118,26 @@ class Timepad(BaseParser):
             Authorization=f"Bearer {self._token}",
         )
 
-    def get_event(self, event_id=None, event_url=None, as_post=True):
+    def get_event(self, event_id=None, event_url=None, tags=None, as_post=True):
         if event_url is not None:
             event_id = re.findall(r"(?<=event/)\d*(?=/)", event_url)[0]
 
         if event_id is None:
             raise ValueError("'event_id' or 'event_url' required.")
 
-        event = self.parse(event_id)
+        url = self.events_api + f"/{event_id}"
+        response_json = _request_get(url, headers=self.headers).json()
+
+        tags = tags or EVENT_TAGS["to_post"]
+        event = self.parse(response_json, tags=tags)
 
         if as_post:
+            check_post_tags(tags)
             return posting.create(event)
+
         return event
 
-    def get_events(self, organization=None, request_params=None, as_posts=True):
+    def get_events(self, organization=None, request_params=None, tags=None):
         """
         Parameters:
         -----------
@@ -196,6 +183,10 @@ class Timepad(BaseParser):
             created_at_min, created_at_max : datetime string format %Y-%m-%dT%H:%M:%S%z
                 event created dates
 
+        tags : list of tags, default None
+            Event tags (title, id, url etc.,
+            see all tags in 'escraper.parsers.ALL_EVENT_TAGS')
+
         Examples:
         ---------
         >>> tp = Timepad()
@@ -222,110 +213,75 @@ class Timepad(BaseParser):
         <10 events after that starts after "2020-08-11T00:00:00">
         """
         request_params = request_params or {}
+        tags = tags or EVENT_TAGS["to_database"]
 
         url = self.events_api + ".json"
         res = _request_get(url, params=request_params, headers=self.headers)
 
         events_data = list()
-        for event in res.json()["values"]:
-            events_data.append(self.get_event(event_url=event["url"], as_post=as_posts))
+        for response_json in res.json()["values"]:
+            events_data.append(self.parse(response_json, tags=tags))
 
         return events_data
 
-
-
     def get_events4db(self, organization=None, request_params=None):
-        request_params = request_params or {}
+        return self.get_events(
+            request_params=request_params,
+            tags=EVENT_TAGS["to_database"],
+        )
 
-        url = self.events_api + ".json"
-        res = _request_get(url, params=request_params, headers=self.headers)
-
-        events4db=[]
-        for event in res.json()["values"]:
-            event_id=event['id']
-            
-            if "poster_image" not in event:
-                poster_imag = None
-            else:
-                poster_imag = event["poster_image"]["default_url"]
-            date_s=datetime.strptime(event["starts_at"], STRPTIME)
-
-            events4db.append(EventData4db(
-                id=event['id'],
-                date=date_s.date(),
-                title=remove_html_tags(event["name"]),
-                category=event["categories"][0]['name'],
-                poster_imag=poster_imag,
-                url=event["url"]
-                ))
-        return events4db
-
-    def events4day(self, monthday=0, limit=10, price_max=500): #make to choose day
-        date_4_searching=whatdate(monthday)
-        params={'limit':limit,
-        'price_max':price_max,
-        'starts_at_min': f"{date_4_searching}T00:00:00",
-        'starts_at_max': f"{date_4_searching}T23:59:59", 
-        'category_ids_exclude':"217,376,399,453,1315"}
+    def events4day(self, monthday=0, limit=10, price_max=500):  # make to choose day
+        date_4_searching = whatdate(monthday)
+        params = dict(
+            limit=limit,
+            price_max=price_max,
+            starts_at_min=f"{date_4_searching}T00:00:00",
+            starts_at_max=f"{date_4_searching}T23:59:59",
+            category_ids_exclude="217, 376, 399, 453, 1315",
+        )
 
         return self.get_events4db(request_params=params)
 
-    def putInDb(self):
-        self.events4day()
-        return 'Q'
-
-
-    def parse(self, event_id):
-        url = self.events_api + f"/{event_id}"
-        event = _request_get(url, headers=self.headers).json()
-
-        if "poster_image" not in event:
-            poster_imag = None
-        else:
-            poster_imag = event["poster_image"]["default_url"]
-
-        return EventData(
-            title=remove_html_tags(event["name"]),
-            title_date=self.get_title_date(event),
-            place_name=remove_html_tags(event["organization"]["name"]),
-            post_text=remove_html_tags(event["description_html"]),
-            date=self.get_date(event),
-            adress=self.get_address(event),
-            poster_imag=poster_imag,
-            url=event["url"],
-            price=self.get_price(event),
-        )
-
-    def get_price(self, event):
-        if event['registration_data']['is_registration_open']==True:
-            price_min=event['registration_data']['price_min']
-        else:
-            price_min=-1
-
-        if price_min==0:
-            price_text='Бесплатно'
-        elif price_min>0:
-            price_text=f"{price_min}₽"
-        else:
-            price_text='Билетов нет'
-        return price_text
-
-    def get_date4DB(self,event):
-        starts_at = datetime.strptime(event["starts_at"], STRPTIME)
-
-    def get_title_date(self, event):
-        starts_at = datetime.strptime(event["starts_at"], STRPTIME)
-        return (
-            "{day} {month}".format(
-                day=starts_at.day,
-                month=month_name(starts_at),
+    def parse(self, response_json, tags=None):
+        if tags is None:
+            raise ValueError(
+                "'tags' for event required (see escraper.parsers.ALL_EVENT_TAGS)."
             )
-        )
 
-    def get_date(self, event):
+        data = dict()
+        for tag in tags:
+            try:
+                data[tag] = getattr(self, "_" + tag)(response_json)
+            except AttributeError:
+                raise TypeError(
+                    f"Unsupported event tag found: {tag}.\n"
+                    f"All available event tags: {ALL_EVENT_TAGS}."
+                )
+
+        DataStorage = namedtuple("event", tags)
+
+        return DataStorage(**data)
+
+    def _title(self, event):
+        return remove_html_tags(event["name"])
+
+    def _title_date(self, event):
+        starts_at = datetime.strptime(event["starts_at"], STRPTIME)
+        return "{day} {month}".format(day=starts_at.day, month=month_name(starts_at),)
+
+    def _place_name(self, event):
+        return remove_html_tags(event["organization"]["name"])
+
+    def _post_text(self, event):
+        return remove_html_tags(event["description_html"])
+
+    def _date(self, event):
+        return datetime.strptime(event["starts_at"], STRPTIME).date()
+
+    def _date_from_to(self, event):
         starts_at = datetime.strptime(event["starts_at"], STRPTIME)
 
-        s_weekday = weekday_name(starts_at),
+        s_weekday = weekday_name(starts_at)
         s_day = starts_at.day
         s_month = month_name(starts_at)
         s_hour = starts_at.hour
@@ -340,34 +296,76 @@ class Timepad(BaseParser):
             e_minute = ends_at.minute
 
             if s_day == e_day:
-                start_format = f"{s_weekday}, {s_day} {s_month} {s_hour:02}:{s_minute:02}-"
-                end_format = f"{e_hour:02}:{e_minute:02}" 
+                start_format = (
+                    f"{s_weekday}, {s_day} {s_month} {s_hour:02}:{s_minute:02}-"
+                )
+                end_format = f"{e_hour:02}:{e_minute:02}"
 
             else:
                 start_format = f"с {s_day} {s_month} {s_hour:02}:{s_minute:02} "
                 end_format = f"по {e_day} {e_month} {e_hour:02}:{e_minute:02}"
 
         else:
-            end_format = ""  # TODO what wrong with this event? 
+            end_format = ""  # TODO what wrong with this event?
             start_format = f"{s_weekday}, {s_day} {s_month} {s_hour:02}:{s_minute:02}"
 
         return start_format + end_format
 
-    def get_address(self, event):
+    def _adress(self, event):
         if "city" not in event["location"]:
-            address = "Онлайн"
-        elif "city" in event["location"] and "address" not in event["location"]:
-            address = "Санкт-Петербург"
-        elif event["location"]["city"] == "Без города":
-            address = "Санкт-Петербург"
-        elif "coordinates" in event["location"]:
-            address = ", ".join(map(str, event["location"]["coordinates"]))  # coordinates, realy?
-        elif "address" not in event["location"]:
-            raise TypeError("Unknown address type: {}".format(event["location"]))
+            if "coordinates" in event["location"]:
+                address = ", ".join(
+                    map(str, event["location"]["coordinates"])
+                )  # coordinates, realy?
+            else:
+                address = "Онлайн"
+
         else:
-            address = event["location"]["address"]
+            if event["location"]["city"] == "Без города":
+                address = "Санкт-Петербург"
+
+            elif "address" not in event["location"]:
+                raise TypeError("Unknown address type: {}".format(event["location"]))
+
+            else:
+                address = event["location"]["address"]
 
         return remove_html_tags(address)
+
+    def _poster_imag(self, event):
+        if "poster_image" not in event:
+            return None
+
+        return event["poster_image"]["default_url"]
+
+    def _url(self, event):
+        return event["url"]
+
+    def _price(self, event):
+        if event["registration_data"]["is_registration_open"]:
+            price_min = event["registration_data"]["price_min"]
+
+            if price_min == 0:
+                price_text = "Бесплатно"
+            elif price_min > 0:
+                price_text = f"{price_min}₽"
+
+        else:
+            price_text = "Билетов нет"
+
+        return price_text
+
+    def _id(self, event):
+        return event["id"]
+
+    def _category(self, event):
+        """
+        TODO create more flexible detection categories
+        """
+        return event["categories"][0]["name"]
+
+    def get_date4DB(self, event):
+        starts_at = datetime.strptime(event["starts_at"], STRPTIME)
 
     @property
     def event_categories(self):
@@ -430,3 +428,15 @@ class Timepad(BaseParser):
         """
         url = "https://api.timepad.ru/v1/dictionary/tickets_statuses"
         return _request_get(url, headers=self.headers).json()["values"]
+
+
+def check_post_tags(tags):
+    if tags is None:
+        raise ValueError("Event tags not found.")
+
+    missing_tags = EVENT_TAGS["to_post"] - set(tags)
+
+    if missing_tags:
+        raise ValueError(
+            f"Not found some tags for creating post: {missing_tags}"
+        )
