@@ -313,19 +313,22 @@ class Timepad(BaseParser):
 
     def _adress(self, event):
         if "city" not in event["location"]:
-            address = "Онлайн"
-        elif "city" in event["location"] and "address" not in event["location"]:
-            address = "Санкт-Петербург"
-        elif event["location"]["city"] == "Без города":
-            address = "Санкт-Петербург"
-        elif "coordinates" in event["location"]:
-            address = ", ".join(
-                map(str, event["location"]["coordinates"])
-            )  # coordinates, realy?
-        elif "address" not in event["location"]:
-            raise TypeError("Unknown address type: {}".format(event["location"]))
+            if "coordinates" in event["location"]:
+                address = ", ".join(
+                    map(str, event["location"]["coordinates"])
+                )  # coordinates, realy?
+            else:
+                address = "Онлайн"
+
         else:
-            address = event["location"]["address"]
+            if event["location"]["city"] == "Без города":
+                address = "Санкт-Петербург"
+
+            elif "address" not in event["location"]:
+                raise TypeError("Unknown address type: {}".format(event["location"]))
+
+            else:
+                address = event["location"]["address"]
 
         return remove_html_tags(address)
 
@@ -339,17 +342,17 @@ class Timepad(BaseParser):
         return event["url"]
 
     def _price(self, event):
-        if event["registration_data"]["is_registration_open"] == True:
+        if event["registration_data"]["is_registration_open"]:
             price_min = event["registration_data"]["price_min"]
-        else:
-            price_min = -1
 
-        if price_min == 0:
-            price_text = "Бесплатно"
-        elif price_min > 0:
-            price_text = f"{price_min}₽"
+            if price_min == 0:
+                price_text = "Бесплатно"
+            elif price_min > 0:
+                price_text = f"{price_min}₽"
+
         else:
             price_text = "Билетов нет"
+
         return price_text
 
     def _id(self, event):
