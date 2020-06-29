@@ -10,33 +10,26 @@ from bs4 import BeautifulSoup
 
 from .base import BaseParser
 from .utils import weekday_name, month_name, whatdate
-from . import posting
 
 
 all_parsers = dict()
 STRPTIME = "%Y-%m-%dT%H:%M:%S%z"
-EVENT_TAGS = dict(
-    to_post=frozenset([
-        "title",
-        "title_date",
-        "place_name",
-        "post_text",
-        "date_from_to",
-        "adress",
-        "poster_imag",
-        "url",
-        "price",
-    ]),
-    to_database=frozenset([
-        "id",
-        "date",
-        "title",
-        "category",
-        "poster_imag",
-        "url",
-    ])
+
+ALL_EVENT_TAGS = (
+    "adress",
+    "category",
+    "date",
+    "date_from_to",
+    "id",
+    "place_name",
+    "post_text",
+    "poster_imag",
+    "price",
+    "title",
+    "title_date",
+    "url",
 )
-ALL_EVENT_TAGS = set(itertools.chain(*[s for s in EVENT_TAGS.values()]))
+
 MAX_NUMBER_CONNECTION_ATTEMPTS = 3
 
 
@@ -97,6 +90,19 @@ class Timepad(BaseParser):
     name = "timepad"
     url = "www.timepad.ru"
     events_api = "https://api.timepad.ru/v1/events"
+    FIELDS = (
+        "name",
+        "starts_at",
+        "organization",
+        "description_html",
+        "ends_at",
+        "location",
+        "poster_image",
+        "url",
+        "registration_data",
+        "id",
+        "categories",
+    )
 
     def __init__(self, token=None):
         if token is None:
@@ -118,7 +124,7 @@ class Timepad(BaseParser):
             Authorization=f"Bearer {self._token}",
         )
 
-    def get_event(self, event_id=None, event_url=None, tags=None, as_post=True):
+    def get_event(self, event_id=None, event_url=None, tags=None):
         if event_url is not None:
             event_id = re.findall(r"(?<=event/)\d*(?=/)", event_url)[0]
 
@@ -128,12 +134,13 @@ class Timepad(BaseParser):
         url = self.events_api + f"/{event_id}"
         response_json = _request_get(url, headers=self.headers).json()
 
-        tags = tags or EVENT_TAGS["to_post"]
-        event = self.parse(response_json, tags=tags)
+        if not is_moderated(response_json):
+            print("Event is not moderated")
+            event = None
 
-        if as_post:
-            check_post_tags(tags)
-            return posting.create(event)
+        else:
+            tags = tags or ALL_EVENT_TAGS
+            event = self.parse(response_json, tags=tags)
 
         return event
 
@@ -183,7 +190,7 @@ class Timepad(BaseParser):
             created_at_min, created_at_max : datetime string format %Y-%m-%dT%H:%M:%S%z
                 event created dates
 
-        tags : list of tags, default None
+        tags : list of tags, default all available event tags
             Event tags (title, id, url etc.,
             see all tags in 'escraper.parsers.ALL_EVENT_TAGS')
 
@@ -213,34 +220,20 @@ class Timepad(BaseParser):
         <10 events after that starts after "2020-08-11T00:00:00">
         """
         request_params = request_params or {}
-        tags = tags or EVENT_TAGS["to_database"]
+        request_params["fields"] = request_params.get("fields") or ", ".join(self.FIELDS)
+        tags = tags or ALL_EVENT_TAGS
 
         url = self.events_api + ".json"
         res = _request_get(url, params=request_params, headers=self.headers)
 
         events_data = list()
         for response_json in res.json()["values"]:
-            events_data.append(self.parse(response_json, tags=tags))
+            if is_moderated(response_json):
+                events_data.append(self.parse(response_json, tags=tags))
+            else:
+                events_data.append(None)
 
         return events_data
-
-    def get_events4db(self, organization=None, request_params=None):
-        return self.get_events(
-            request_params=request_params,
-            tags=EVENT_TAGS["to_database"],
-        )
-
-    def events4day(self, monthday=0, limit=10, price_max=500):  # make to choose day
-        date_4_searching = whatdate(monthday)
-        params = dict(
-            limit=limit,
-            price_max=price_max,
-            starts_at_min=f"{date_4_searching}T00:00:00",
-            starts_at_max=f"{date_4_searching}T23:59:59",
-            category_ids_exclude="217, 376, 399, 453, 1315",
-        )
-
-        return self.get_events4db(request_params=params)
 
     def parse(self, response_json, tags=None):
         if tags is None:
@@ -313,19 +306,20 @@ class Timepad(BaseParser):
 
     def _adress(self, event):
         if "city" not in event["location"]:
-            if "coordinates" in event["location"]:
-                address = ", ".join(
-                    map(str, event["location"]["coordinates"])
-                )  # coordinates, realy?
-            else:
-                address = "Онлайн"
+            address = "Онлайн"
 
         else:
             if event["location"]["city"] == "Без города":
                 address = "Санкт-Петербург"
 
             elif "address" not in event["location"]:
-                raise TypeError("Unknown address type: {}".format(event["location"]))
+                if "coordinates" in event["location"]:
+                    address = ", ".join(
+                        map(str, event["location"]["coordinates"])
+                    )  # coordinates, realy?
+
+                else:
+                    raise TypeError("Unknown address type: {}".format(event["location"]))
 
             else:
                 address = event["location"]["address"]
@@ -363,9 +357,6 @@ class Timepad(BaseParser):
         TODO create more flexible detection categories
         """
         return event["categories"][0]["name"]
-
-    def get_date4DB(self, event):
-        starts_at = datetime.strptime(event["starts_at"], STRPTIME)
 
     @property
     def event_categories(self):
@@ -430,13 +421,5 @@ class Timepad(BaseParser):
         return _request_get(url, headers=self.headers).json()["values"]
 
 
-def check_post_tags(tags):
-    if tags is None:
-        raise ValueError("Event tags not found.")
-
-    missing_tags = EVENT_TAGS["to_post"] - set(tags)
-
-    if missing_tags:
-        raise ValueError(
-            f"Not found some tags for creating post: {missing_tags}"
-        )
+def is_moderated(response_json):
+    return response_json["moderation_status"] != "not_moderated"
