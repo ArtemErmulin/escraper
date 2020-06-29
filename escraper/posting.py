@@ -1,4 +1,3 @@
-
 def create(ed):
     """
     Creating post by raw data.
@@ -18,9 +17,9 @@ def create(ed):
 
     footer = (
         "\n"
-        f'*Где:* {ed.place_name}, {ed.adress} \n'
-        f'*Когда:* {ed.date} \n'
-        f'*Вход:* [{ed.price}]({ed.url})'
+        f"*Где:* {ed.place_name}, {ed.adress} \n"
+        f"*Когда:* {ed.date_from_to} \n"
+        f"*Вход:* [{ed.price}]({ed.url})"
     )
 
     # if ed.price==:
@@ -29,7 +28,6 @@ def create(ed):
     #     footer +=f'*Вход свободный* [по предварительной регистрации]({ed.url})'
     # elif ed.price>0:
     #     footer +=f'*Вход:* [от {ed.price}₽]({ed.url})'
-    
 
     full_text = title + ed.post_text + footer
     return full_text

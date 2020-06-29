@@ -1,3 +1,5 @@
+from datetime import date
+
 
 WEEKNAMES = {
     0: "Понедельник",
@@ -27,5 +29,20 @@ MONTHNAMES = {
 def weekday_name(dt):
     return WEEKNAMES[dt.weekday()]
 
+
 def month_name(dt):
     return MONTHNAMES[dt.month]
+
+
+def whatdate(monthday):
+    """
+    TODO добавить поиск по месяцу и если день месяца прошёл,
+    то переключаться на следующей месяц
+    """
+    if monthday == 0:
+        date_4_searching = date.today().isoformat()
+    else:
+        date_4_searching = date(
+            date.today().year, date.today().month, monthday
+        ).isoformat()
+    return date_4_searching
