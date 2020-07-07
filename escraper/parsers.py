@@ -18,16 +18,16 @@ STRPTIME = "%Y-%m-%dT%H:%M:%S%z"
 ALL_EVENT_TAGS = (
     "adress",
     "category",
-    "date",
-    "date_from_to",
+    "date_from",
+    "date_to",
     "id",
     "place_name",
     "post_text",
     "poster_imag",
     "price",
     "title",
-    "title_date",
     "url",
+    "is_registration_open",
 )
 
 MAX_NUMBER_CONNECTION_ATTEMPTS = 3
@@ -255,55 +255,6 @@ class Timepad(BaseParser):
 
         return DataStorage(**data)
 
-    def _title(self, event):
-        return remove_html_tags(event["name"])
-
-    def _title_date(self, event):
-        starts_at = datetime.strptime(event["starts_at"], STRPTIME)
-        return "{day} {month}".format(day=starts_at.day, month=month_name(starts_at),)
-
-    def _place_name(self, event):
-        return remove_html_tags(event["organization"]["name"])
-
-    def _post_text(self, event):
-        return remove_html_tags(event["description_html"])
-
-    def _date(self, event):
-        return datetime.strptime(event["starts_at"], STRPTIME).date()
-
-    def _date_from_to(self, event):
-        starts_at = datetime.strptime(event["starts_at"], STRPTIME)
-
-        s_weekday = weekday_name(starts_at)
-        s_day = starts_at.day
-        s_month = month_name(starts_at)
-        s_hour = starts_at.hour
-        s_minute = starts_at.minute
-
-        if "ends_at" in event:
-            ends_at = datetime.strptime(event["ends_at"], STRPTIME)
-
-            e_day = ends_at.day
-            e_month = month_name(ends_at)
-            e_hour = ends_at.hour
-            e_minute = ends_at.minute
-
-            if s_day == e_day:
-                start_format = (
-                    f"{s_weekday}, {s_day} {s_month} {s_hour:02}:{s_minute:02}-"
-                )
-                end_format = f"{e_hour:02}:{e_minute:02}"
-
-            else:
-                start_format = f"с {s_day} {s_month} {s_hour:02}:{s_minute:02} "
-                end_format = f"по {e_day} {e_month} {e_hour:02}:{e_minute:02}"
-
-        else:
-            end_format = ""  # TODO what wrong with this event?
-            start_format = f"{s_weekday}, {s_day} {s_month} {s_hour:02}:{s_minute:02}"
-
-        return start_format + end_format
-
     def _adress(self, event):
         if "city" not in event["location"]:
             address = "Онлайн"
@@ -326,14 +277,34 @@ class Timepad(BaseParser):
 
         return remove_html_tags(address)
 
+    def _category(self, event):
+        """
+        TODO create more flexible detection categories
+        """
+        return event["categories"][0]["name"]
+
+    def _date_from(self, event):
+        return datetime.strptime(event["starts_at"], STRPTIME).date()
+
+    def _date_to(self, event):
+        if "ends_at" in event:
+            return datetime.strptime(event["ends_at"], STRPTIME).date()
+        return None
+
+    def _id(self, event):
+        return event["id"]
+
+    def _place_name(self, event):
+        return remove_html_tags(event["organization"]["name"])
+
+    def _post_text(self, event):
+        return remove_html_tags(event["description_html"])
+
     def _poster_imag(self, event):
         if "poster_image" not in event:
             return None
 
         return event["poster_image"]["default_url"]
-
-    def _url(self, event):
-        return event["url"]
 
     def _price(self, event):
         if event["registration_data"]["is_registration_open"]:
@@ -349,14 +320,14 @@ class Timepad(BaseParser):
 
         return price_text
 
-    def _id(self, event):
-        return event["id"]
+    def _title(self, event):
+        return remove_html_tags(event["name"])
 
-    def _category(self, event):
-        """
-        TODO create more flexible detection categories
-        """
-        return event["categories"][0]["name"]
+    def _url(self, event):
+        return event["url"]
+
+    def _is_registration_open(self, event):
+        return int(event["registration_data"]["is_registration_open"])
 
     @property
     def event_categories(self):
