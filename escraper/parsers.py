@@ -284,11 +284,14 @@ class Timepad(BaseParser):
         return event["categories"][0]["name"]
 
     def _date_from(self, event):
-        return datetime.strptime(event["starts_at"], STRPTIME)
+        dt = datetime.strptime(event["starts_at"], STRPTIME)
+
+        return dt.replace(tzinfo=None)
 
     def _date_to(self, event):
         if "ends_at" in event:
-            return datetime.strptime(event["ends_at"], STRPTIME)
+            dt = datetime.strptime(event["ends_at"], STRPTIME)
+            return dt.replace(tzinfo=None)
         return None
 
     def _id(self, event):
