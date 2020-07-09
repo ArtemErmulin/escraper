@@ -1,5 +1,5 @@
 from collections import namedtuple
-from datetime import datetime, date
+from datetime import datetime
 import os
 import itertools
 import random
@@ -9,7 +9,7 @@ import requests
 from bs4 import BeautifulSoup
 
 from .base import BaseParser
-from .utils import weekday_name, month_name, whatdate
+from .utils import weekday_name, month_name
 
 
 all_parsers = dict()
@@ -284,11 +284,11 @@ class Timepad(BaseParser):
         return event["categories"][0]["name"]
 
     def _date_from(self, event):
-        return datetime.strptime(event["starts_at"], STRPTIME).date()
+        return datetime.strptime(event["starts_at"], STRPTIME)
 
     def _date_to(self, event):
         if "ends_at" in event:
-            return datetime.strptime(event["ends_at"], STRPTIME).date()
+            return datetime.strptime(event["ends_at"], STRPTIME)
         return None
 
     def _id(self, event):
