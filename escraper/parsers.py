@@ -307,7 +307,7 @@ class Timepad(BaseParser):
         if "poster_image" not in event:
             return None
 
-        return event["poster_image"]["default_url"]
+        return event["poster_image"]["uploadcare_url"][2:]
 
     def _price(self, event):
         if event["registration_data"]["is_registration_open"]:
