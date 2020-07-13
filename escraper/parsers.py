@@ -21,7 +21,6 @@ ALL_EVENT_TAGS = (
     "date_to",
     "id",
     "place_name",
-    "organization_id",
     "post_text",
     "poster_imag",
     "price",
@@ -302,9 +301,6 @@ class Timepad(BaseParser):
 
     def _place_name(self, event):
         return remove_html_tags(event["organization"]["name"])
-
-    def _organization_id(self, event):
-        return event["organization"]["id"]
 
     def _post_text(self, event):
         return remove_html_tags(event["description_short"])
