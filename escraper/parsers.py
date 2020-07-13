@@ -9,7 +9,6 @@ import requests
 from bs4 import BeautifulSoup
 
 from .base import BaseParser
-from .utils import weekday_name, month_name
 
 
 all_parsers = dict()
@@ -120,9 +119,7 @@ class Timepad(BaseParser):
         else:
             self._token = token
 
-        self.headers = dict(
-            Authorization=f"Bearer {self._token}",
-        )
+        self.headers = dict(Authorization=f"Bearer {self._token}")
 
     def get_event(self, event_id=None, event_url=None, tags=None):
         if event_url is not None:
@@ -220,7 +217,9 @@ class Timepad(BaseParser):
         <10 events after that starts after "2020-08-11T00:00:00">
         """
         request_params = request_params or {}
-        request_params["fields"] = request_params.get("fields") or ", ".join(self.FIELDS)
+        if "fields" not in request_params:
+            request_params["fields"] = ", ".join(self.FIELDS)
+
         tags = tags or ALL_EVENT_TAGS
 
         url = self.events_api + ".json"
@@ -270,7 +269,9 @@ class Timepad(BaseParser):
                     )  # coordinates, realy?
 
                 else:
-                    raise TypeError("Unknown address type: {}".format(event["location"]))
+                    raise TypeError(
+                        "Unknown address type: {}".format(event["location"])
+                    )
 
             else:
                 address = event["location"]["address"]
