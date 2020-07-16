@@ -99,6 +99,7 @@ class Timepad(BaseParser):
         "poster_image",
         "url",
         "registration_data",
+        "ticket_types",
         "id",
         "categories",
     )
@@ -312,7 +313,16 @@ class Timepad(BaseParser):
 
     def _price(self, event):
         if event["registration_data"]["is_registration_open"]:
-            price_min = event["registration_data"]["price_min"]
+            price_min_in_answer = event["registration_data"]["price_min"]
+            price_min = event["registration_data"]["price_max"]
+            
+            for ticket in event['ticket_types']:
+                if ticket['price']==price_min_in_answer and ticket['status']=='ok':
+                    price_min=price_min_in_answer
+                    break
+                elif ticket['price']<price_min and ticket['status']=='ok':
+                    price_min=ticket['price']
+
 
             if price_min == 0:
                 price_text = "Бесплатно"
