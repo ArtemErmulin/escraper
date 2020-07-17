@@ -60,8 +60,19 @@ def _request_get(*args, **kwargs):
             attempts_count += 1
             print("Retry connection...")
 
-    if not response.ok:
-        raise ValueError("Bad request, reason: {}".format(response.reason))
+        else:
+            if not response.ok:
+                if attempts_count == MAX_NUMBER_CONNECTION_ATTEMPTS:
+                    raise ValueError("Failed to get new events.")
+
+                print(
+                    "Bad response: {status_code}: {reason}, retry..."
+                    .format(
+                        status_code=response.status_code,
+                        reason=response.reason,
+                    )
+                )
+                attempts_count += 1
 
     return response
 
