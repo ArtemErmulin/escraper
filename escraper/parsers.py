@@ -105,6 +105,7 @@ class Timepad(BaseParser):
         "starts_at",
         "organization",
         "description_short",
+        "description_html",
         "ends_at",
         "location",
         "poster_image",
@@ -314,7 +315,12 @@ class Timepad(BaseParser):
         return remove_html_tags(event["organization"]["name"])
 
     def _post_text(self, event):
-        return remove_html_tags(event["description_short"])
+        post_text = ""
+
+        if not remove_html_tags(event["description_short"]):
+            post_text = remove_html_tags(event["description_html"])
+
+        return post_text
 
     def _poster_imag(self, event):
         if "poster_image" not in event:
