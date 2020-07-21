@@ -326,8 +326,14 @@ class Timepad(BaseParser):
         post_text = ""
 
         if not remove_html_tags(event["description_short"]):
-            post_text = remove_html_tags(event["description_html"])
-
+            list_post_text = remove_html_tags(event["description_html"]).split('\n')
+            for p in list_post_text:
+                if len(post_text) > 300:
+                    return post_text
+                post_text+=p
+        else: 
+            post_text = remove_html_tags(event["description_short"])
+            
         return post_text
 
     def _poster_imag(self, event):
