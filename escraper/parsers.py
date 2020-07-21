@@ -72,7 +72,8 @@ def _request_get(*args, **kwargs):
                 warnings.warn(warning_msg + "\nRetry")
                 attempts_count += 1
 
-            break
+            else:
+                break
 
         except requests.ConnectionError as e:
             if attempts_count == MAX_NUMBER_CONNECTION_ATTEMPTS:
