@@ -4,6 +4,7 @@ import os
 import itertools
 import random
 import re
+import warnings
 
 import requests
 from bs4 import BeautifulSoup
@@ -53,26 +54,31 @@ def _request_get(*args, **kwargs):
     while True:
         try:
             response = requests.get(*args, **kwargs)
+
+            if not response.ok:
+                response_status = response.json()["response_status"]
+
+                warning_msg = (
+                    "Bad response: {status_code}: {message}."
+                    .format(
+                        status_code=response_status["error_code"],
+                        message=response_status["message"],
+                    )
+                )
+
+                if attempts_count == MAX_NUMBER_CONNECTION_ATTEMPTS:
+                    raise ValueError(warning_msg)
+
+                warnings.warn(warning_msg + "\nRetry")
+                attempts_count += 1
+
             break
+
         except requests.ConnectionError as e:
             if attempts_count == MAX_NUMBER_CONNECTION_ATTEMPTS:
                 raise e
             attempts_count += 1
-            print("Retry connection...")
-
-        else:
-            if not response.ok:
-                if attempts_count == MAX_NUMBER_CONNECTION_ATTEMPTS:
-                    raise ValueError("Failed to get new events.")
-
-                print(
-                    "Bad response: {status_code}: {reason}, retry..."
-                    .format(
-                        status_code=response.status_code,
-                        reason=response.reason,
-                    )
-                )
-                attempts_count += 1
+            print("Retry connection")
 
     return response
 
