@@ -279,13 +279,14 @@ class Timepad(BaseParser):
             address = "Онлайн"
 
         else:
-            if event["location"]["city"] in ["Санкт-Петербург"]:
-                address = "Санкт-Петербург"
-            elif event["location"]["city"]=="Без города":
-                address = "Онлайн"
+            if "address" not in event["location"]:
+                if event["location"]["city"] in ["Санкт-Петербург"]:
+                    address = "Санкт-Петербург"
 
-            elif "address" not in event["location"]:
-                if "coordinates" in event["location"]:
+                elif event["location"]["city"]=="Без города":
+                    address = "Онлайн"
+
+                elif "coordinates" in event["location"]:
                     address = ", ".join(
                         map(str, event["location"]["coordinates"])
                     )  # coordinates, realy?
