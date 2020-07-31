@@ -332,11 +332,11 @@ class Timepad(BaseParser):
         else: 
             post_text = remove_html_tags(event["description_short"])
 
-        list_post_text=post_text.split('\n')
-        for p in list_post_text:
-            if len(post_text) > 300:
-                return post_text
-            post_text+=p            
+        # list_post_text = post_text.split('\n')
+        # for p in list_post_text:
+        #     if len(post_text) > 300:
+        #         return post_text
+        #     post_text+=p            
 
         if len(post_text) > 550:
             sentences=post_text.split('.')
