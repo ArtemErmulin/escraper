@@ -322,7 +322,7 @@ class Timepad(BaseParser):
         return event["id"]
 
     def _place_name(self, event):
-        return remove_html_tags(event["organization"]["name"])
+        return remove_html_tags(event["organization"]["name"]).strip()
 
     def _post_text(self, event):
         post_text = ""
@@ -331,12 +331,6 @@ class Timepad(BaseParser):
             post_text = remove_html_tags(event["description_html"])
         else: 
             post_text = remove_html_tags(event["description_short"])
-
-        # list_post_text = post_text.split('\n')
-        # for p in list_post_text:
-        #     if len(post_text) > 300:
-        #         return post_text
-        #     post_text+=p            
 
         if len(post_text) > 550:
             sentences=post_text.split('.')
