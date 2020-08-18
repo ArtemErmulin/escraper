@@ -11,7 +11,7 @@ from bs4 import BeautifulSoup
 
 from .base import BaseParser
 
-from emoji import add_emoji
+from .emoji import add_emoji
 
 
 all_parsers = dict()
