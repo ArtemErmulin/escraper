@@ -11,6 +11,8 @@ from bs4 import BeautifulSoup
 
 from .base import BaseParser
 
+from emoji import add_emoji
+
 
 all_parsers = dict()
 STRPTIME = "%Y-%m-%dT%H:%M:%S%z"
@@ -374,7 +376,7 @@ class Timepad(BaseParser):
         return price_text
 
     def _title(self, event):
-        return remove_html_tags(event["name"])
+        return add_emoji(remove_html_tags(event["name"]))
 
     def _url(self, event):
         return event["url"]
