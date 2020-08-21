@@ -6,16 +6,10 @@ import random
 import re
 import warnings
 
-import requests
-from bs4 import BeautifulSoup
-
 from .base import BaseParser
+from .utils import remove_html_tags, _request_get, STRPTIME
+from ..emoji import add_emoji
 
-from .emoji import add_emoji
-
-
-all_parsers = dict()
-STRPTIME = "%Y-%m-%dT%H:%M:%S%z"
 
 ALL_EVENT_TAGS = (
     "adress",
@@ -32,61 +26,7 @@ ALL_EVENT_TAGS = (
     "is_registration_open",
 )
 
-MAX_NUMBER_CONNECTION_ATTEMPTS = 3
 
-
-def parser_register(cls):
-    all_parsers[cls.name.lower()] = cls
-    return cls
-
-
-def remove_html_tags(data):
-    return BeautifulSoup(data, "html.parser").text
-
-
-def _request_get(*args, **kwargs):
-    """
-    Send get request with specifica arguments.
-
-    To avoid internet connection issues,
-    will catch ConnectionError and retry.
-    """
-    attempts_count = 0
-
-    while True:
-        try:
-            response = requests.get(*args, **kwargs)
-
-            if not response.ok:
-                response_status = response.json()["response_status"]
-
-                warning_msg = (
-                    "Bad response: {status_code}: {message}."
-                    .format(
-                        status_code=response_status["error_code"],
-                        message=response_status["message"],
-                    )
-                )
-
-                if attempts_count == MAX_NUMBER_CONNECTION_ATTEMPTS:
-                    raise ValueError(warning_msg)
-
-                warnings.warn(warning_msg + "\nRetry")
-                attempts_count += 1
-
-            else:
-                break
-
-        except requests.ConnectionError as e:
-            if attempts_count == MAX_NUMBER_CONNECTION_ATTEMPTS:
-                raise e
-            attempts_count += 1
-            print("Retry connection")
-
-    return response
-
-
-@parser_register
 class Timepad(BaseParser):
     """
     Parse ivents from www.timepad.ru by API:
@@ -285,7 +225,7 @@ class Timepad(BaseParser):
                 if event["location"]["city"] in ["Санкт-Петербург"]:
                     address = "Санкт-Петербург"
 
-                elif event["location"]["city"]=="Без города":
+                elif event["location"]["city"] == "Без города":
                     address = "Онлайн"
 
                 elif "coordinates" in event["location"]:
@@ -331,19 +271,19 @@ class Timepad(BaseParser):
 
         if not remove_html_tags(event["description_short"]):
             post_text = remove_html_tags(event["description_html"])
-        else: 
+        else:
             post_text = remove_html_tags(event["description_short"])
 
         if len(post_text) > 550:
-            sentences=post_text.split('.')
-            post = ''
+            sentences = post_text.split(".")
+            post = ""
             for s in sentences:
                 if len(post) < 365:
-                    post = post + s + '.'
+                    post = post + s + "."
                 else:
                     post_text = post
                     break
-                    
+
         return post_text
 
     def _poster_imag(self, event):
@@ -356,14 +296,13 @@ class Timepad(BaseParser):
         if event["registration_data"]["is_registration_open"]:
             price_min_in_answer = event["registration_data"]["price_min"]
             price_min = event["registration_data"]["price_max"]
-            
-            for ticket in event['ticket_types']:
-                if ticket['price']==price_min_in_answer and ticket['status']=='ok':
-                    price_min=price_min_in_answer
-                    break
-                elif ticket['price']<price_min and ticket['status']=='ok':
-                    price_min=ticket['price']
 
+            for ticket in event["ticket_types"]:
+                if ticket["price"] == price_min_in_answer and ticket["status"] == "ok":
+                    price_min = price_min_in_answer
+                    break
+                elif ticket["price"] < price_min and ticket["status"] == "ok":
+                    price_min = ticket["price"]
 
             if price_min == 0:
                 price_text = "Бесплатно"
