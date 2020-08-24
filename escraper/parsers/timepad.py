@@ -1,30 +1,12 @@
-from collections import namedtuple
 from datetime import datetime
 import os
 import itertools
-import random
 import re
 import warnings
 
 from .base import BaseParser
-from .utils import remove_html_tags, _request_get, STRPTIME
+from .utils import STRPTIME
 from ..emoji import add_emoji
-
-
-ALL_EVENT_TAGS = (
-    "adress",
-    "category",
-    "date_from",
-    "date_to",
-    "id",
-    "place_name",
-    "post_text",
-    "poster_imag",
-    "price",
-    "title",
-    "url",
-    "is_registration_open",
-)
 
 
 class Timepad(BaseParser):
@@ -49,7 +31,7 @@ class Timepad(BaseParser):
     name = "timepad"
     url = "www.timepad.ru"
     events_api = "https://api.timepad.ru/v1/events"
-    FIELDS = (
+    FIELDS = (  # event fields in timepad request parameters
         "name",
         "starts_at",
         "organization",
@@ -91,14 +73,14 @@ class Timepad(BaseParser):
             raise ValueError("'event_id' or 'event_url' required.")
 
         url = self.events_api + f"/{event_id}"
-        response_json = _request_get(url, headers=self.headers).json()
+        response_json = self._request_get(url, headers=self.headers).json()
 
         if not is_moderated(response_json):
             print("Event is not moderated")
             event = None
 
         else:
-            tags = tags or ALL_EVENT_TAGS
+            tags = tags or self.ALL_EVENT_TAGS
             event = self.parse(response_json, tags=tags)
 
         return event
@@ -151,7 +133,7 @@ class Timepad(BaseParser):
 
         tags : list of tags, default all available event tags
             Event tags (title, id, url etc.,
-            see all tags in 'escraper.parsers.ALL_EVENT_TAGS')
+            see all tags in 'escraper.parsers.base.BaseParser.ALL_EVENT_TAGS')
 
         Examples:
         ---------
@@ -182,10 +164,10 @@ class Timepad(BaseParser):
         if "fields" not in request_params:
             request_params["fields"] = ", ".join(self.FIELDS)
 
-        tags = tags or ALL_EVENT_TAGS
+        tags = tags or self.ALL_EVENT_TAGS
 
         url = self.events_api + ".json"
-        res = _request_get(url, params=request_params, headers=self.headers)
+        res = self._request_get(url, params=request_params, headers=self.headers)
 
         events_data = list()
         for response_json in res.json()["values"]:
@@ -195,26 +177,6 @@ class Timepad(BaseParser):
                 events_data.append(None)
 
         return events_data
-
-    def parse(self, response_json, tags=None):
-        if tags is None:
-            raise ValueError(
-                "'tags' for event required (see escraper.parsers.ALL_EVENT_TAGS)."
-            )
-
-        data = dict()
-        for tag in tags:
-            try:
-                data[tag] = getattr(self, "_" + tag)(response_json)
-            except AttributeError:
-                raise TypeError(
-                    f"Unsupported event tag found: {tag}.\n"
-                    f"All available event tags: {ALL_EVENT_TAGS}."
-                )
-
-        DataStorage = namedtuple("event", tags)
-
-        return DataStorage(**data)
 
     def _adress(self, event):
         if "city" not in event["location"]:
@@ -241,7 +203,7 @@ class Timepad(BaseParser):
             else:
                 address = event["location"]["address"]
 
-        return remove_html_tags(address)
+        return self.remove_html_tags(address)
 
     def _category(self, event):
         """
@@ -264,15 +226,15 @@ class Timepad(BaseParser):
         return event["id"]
 
     def _place_name(self, event):
-        return remove_html_tags(event["organization"]["name"]).strip()
+        return self.remove_html_tags(event["organization"]["name"]).strip()
 
     def _post_text(self, event):
         post_text = ""
 
-        if not remove_html_tags(event["description_short"]):
-            post_text = remove_html_tags(event["description_html"])
+        if not self.remove_html_tags(event["description_short"]):
+            post_text = self.remove_html_tags(event["description_html"])
         else:
-            post_text = remove_html_tags(event["description_short"])
+            post_text = self.remove_html_tags(event["description_short"])
 
         if len(post_text) > 550:
             sentences = post_text.split(".")
@@ -315,7 +277,7 @@ class Timepad(BaseParser):
         return price_text
 
     def _title(self, event):
-        return add_emoji(remove_html_tags(event["name"]))
+        return add_emoji(self.remove_html_tags(event["name"]))
 
     def _url(self, event):
         return event["url"]
@@ -342,7 +304,7 @@ class Timepad(BaseParser):
         ]
         """
         url = "https://api.timepad.ru/v1/dictionary/event_categories"
-        return _request_get(url, headers=self.headers).json()["values"]
+        return self._request_get(url, headers=self.headers).json()["values"]
 
     @property
     def event_statuses(self):
@@ -362,7 +324,7 @@ class Timepad(BaseParser):
         ]
         """
         url = "https://api.timepad.ru/v1/dictionary/event_statuses"
-        return _request_get(url, headers=self.headers).json()["values"]
+        return self._request_get(url, headers=self.headers).json()["values"]
 
     @property
     def tickets_statuses(self):
@@ -383,7 +345,7 @@ class Timepad(BaseParser):
         ]
         """
         url = "https://api.timepad.ru/v1/dictionary/tickets_statuses"
-        return _request_get(url, headers=self.headers).json()["values"]
+        return self._request_get(url, headers=self.headers).json()["values"]
 
 
 def is_moderated(response_json):

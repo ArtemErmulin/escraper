@@ -13,13 +13,6 @@ pip install git+https://git@github.com/ArtemErmulin/escraper.git@master#egg=escr
 >>> from escraper.parsers import Timepad
 >>> timepad = Timepad()
 ```
-Available event parameters:
-```python
->>> from escraper.parsers import ALL_EVENT_TAGS
->>> ALL_EVENT_TAGS
-("adress", "category", "date", ...)
-```
-
 Available sites-parsers:
 ```python
 >>> from escraper import all_parsers
