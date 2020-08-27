@@ -223,7 +223,7 @@ class Timepad(BaseParser):
             return dt.replace(tzinfo=None)
         return None
 
-    def _date_From_to(self, event):
+    def _date_from_to(self, event):
         """
         Timepad return date_from and date_to instead.
         """
