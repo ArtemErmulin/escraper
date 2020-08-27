@@ -54,7 +54,8 @@ class BaseParser(ABC):
         pass
 
     @abstractmethod
-    def _id(self) -> int:
+    def _id(self) -> str:
+        """PARSER_PREFIX-ID"""
         pass
 
     @abstractmethod

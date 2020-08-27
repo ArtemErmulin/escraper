@@ -31,6 +31,7 @@ class Timepad(BaseParser):
     name = "timepad"
     url = "www.timepad.ru"
     events_api = "https://api.timepad.ru/v1/events"
+    parser_prefix = "TIMEPAD-"
     FIELDS = (  # event fields in timepad request parameters
         "name",
         "starts_at",
@@ -229,7 +230,7 @@ class Timepad(BaseParser):
         return None
 
     def _id(self, event):
-        return event["id"]
+        return self.parser_prefix + event["id"]
 
     def _place_name(self, event):
         return self.remove_html_tags(event["organization"]["name"]).strip()

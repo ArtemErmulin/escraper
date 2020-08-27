@@ -40,6 +40,7 @@ class Radario(BaseParser):
     name = "radario"
     url = "https://spb.radario.ru/"
     events_api = "https://radario.ru/events/"
+    parser_prefix = "RADARIO-"
 
     def __init__(self):
         pass
@@ -57,11 +58,7 @@ class Radario(BaseParser):
             All available event categories:
                 concert, theatre, museum, education, sport, entertainment, kids, show
 
-                event categories – ['concert', 'theatre', 'museum', 'education', 'sport', 'entertainment', 'kids', 'show']
-                good categories – ['concert','theatre','education','sport', 'entertainment', 'kids', 'show']
-
         date_from_dt, date_to_dt : datetime, default None
-
             в категориях museum и theatre очень много мероприятий, так что интервал дат лучше ставить минимальный(на день)
             в остальных категориях интервал дат 5 дней идеально
 
@@ -159,8 +156,9 @@ class Radario(BaseParser):
         ).text.strip()
 
     def _id(self, event_soup):
-        return int(
-            event_soup.find(
+        return (
+            self.parser_prefix
+            + event_soup.find(
                 "a", {"class": "event-card__title"}
             )["href"].split("/")[-1]
         )
