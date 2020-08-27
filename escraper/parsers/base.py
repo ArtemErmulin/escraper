@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from datetime import datetime
 from collections import namedtuple
 import warnings
 
@@ -13,6 +14,7 @@ class BaseParser(ABC):
         "category",
         "date_from",
         "date_to",
+        "date_from_to",
         "id",
         "place_name",
         "post_text",
@@ -28,7 +30,55 @@ class BaseParser(ABC):
         pass
 
     @abstractmethod
-    def get_events(self):
+    def get_events(self) -> list:
+        pass
+
+    @abstractmethod
+    def _adress(self) -> str:
+        pass
+
+    @abstractmethod
+    def _category(self) -> str:
+        pass
+
+    @abstractmethod
+    def _date_from(self) -> datetime:
+        pass
+
+    @abstractmethod
+    def _date_to(self) -> datetime:
+        pass
+
+    @abstractmethod
+    def _date_from_to(self) -> str:
+        pass
+
+    @abstractmethod
+    def _id(self) -> int:
+        pass
+
+    @abstractmethod
+    def _place_name(self) -> str:
+        pass
+
+    @abstractmethod
+    def _post_text(self) -> str:
+        pass
+
+    @abstractmethod
+    def _poster_imag(self) -> str:
+        pass
+
+    @abstractmethod
+    def _price(self) -> str:
+        pass
+
+    @abstractmethod
+    def _title(self) -> str:
+        pass
+
+    @abstractmethod
+    def _is_registration_open(self) -> bool:
         pass
 
     def parse(self, event_data, tags=None):

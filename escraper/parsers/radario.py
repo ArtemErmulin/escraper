@@ -104,10 +104,13 @@ class Radario(BaseParser):
                 soup = BeautifulSoup(response.text, "html.parser")
 
                 list_event_from_soup = soup.find_all("div", {"class": "event-card"})
-                for event in list_event_from_soup:
-                    event = str(event)
-                    event_soup = BeautifulSoup(event, "html.parser")
+                for event_card in list_event_from_soup:
+                    event_id = event_card.find(
+                        "a", {"class": "event-card__title"}
+                    )["href"].split("/")[-1]
+                    url = self.events_api + event_id
 
+                    event_soup = BeautifulSoup(self._request_get(url).text, "html.parser")
                     events.append(self.parse(event_soup, tags=tags))
 
             else:
@@ -123,16 +126,37 @@ class Radario(BaseParser):
         return date
 
     def _adress(self, event_soup):
-        return ""  # need request for getting adress
+        full_adress = event_soup.find(
+            "span", {"class": "text-secondary mt-2"}
+        ).text.strip()
+
+        if "онлайн" in full_adress.lower():
+            adress = "Онлайн"
+        else:
+            end_idx = full_adress.find(", Санкт-Петербург")
+            adress = full_adress[:end_idx]
+
+        return adress
 
     def _category(self, event_soup):
-        return ""  # ?
+        return event_soup.find("a", {"class": "event-page__tag"})["href"][1:]
 
     def _date_from(self, event_soup):
-        return self._date(event_soup)
+        """
+        Parse from html page string date_from_to instead
+        """
+        return None
 
     def _date_to(self, event_soup):
-        return self._date(event_soup)
+        """
+        Parse from html page string date_from_to instead
+        """
+        return None
+
+    def _date_from_to(self, event_soup):
+        return event_soup.find(
+            "span", {"class": "event-page__date mt-2"}
+        ).text.strip()
 
     def _id(self, event_soup):
         return int(
@@ -143,17 +167,15 @@ class Radario(BaseParser):
 
     def _place_name(self, event_soup):
         return (
-            event_soup.find("span", {"class": "event-card__place"})
+            event_soup.find("span", {"class": "text-secondary mt-3"})
             .text.strip()
-            .replace("Санкт-Петербург,\n      ", "")
-            )  # TODO: change to good
+            )
 
     def _post_text(self, event_soup):
-        # request to event's url and take post text
-        event_html = requests.get(self._url(event_soup)).text
-        return event_html[
-            event_html.find('",description:"') + 15 : event_html.find('",beginDate:"')
-        ]
+        return self.remove_html_tags(
+            event_soup.find("meta", property="og:description")["content"]
+            .replace("<br/>", "\n")
+        )
 
     def _poster_imag(self, event_soup):
         return event_soup.find("img", {"class": "event-card__image"})["src"]
@@ -171,24 +193,3 @@ class Radario(BaseParser):
 
     def _is_registration_open(self, event_soup):
         return self._price(event_soup) != "Билетов нет" and self._date(event_soup) is not None
-
-    def _date(self, event_soup):
-        datenow = datetime.now()
-
-        date = event_soup.find(
-            "span", {"class": "event-card__date"}
-        ).text  # TODO: change
-        if len(date.split(" -\n         ")) > 1:
-            return  # only one day event
-        date_from = date.replace(",\n       ", "").split("-")[0].replace(",", "")
-
-        for ru, num in monthes.items():
-            date_from = date_from.replace(ru, num)
-        date = datetime.strptime(date_from, STRPTIME)
-
-        nowyear = datenow.year
-        if date.month < datenow.month:
-            nowyear += 1  # check if event in next year
-
-        date = date.replace(year=nowyear)
-        return date
