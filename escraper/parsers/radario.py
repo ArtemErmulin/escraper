@@ -172,7 +172,9 @@ class Radario(BaseParser):
         )
 
     def _poster_imag(self, event_soup):
-        return event_soup.find("img", {"class": "event-card__image"})["src"]
+        event_card_image = event_soup.find("img", {"class": "event-card__image"})
+        if event_card_image is not None:
+            return event_card_image["src"]
 
     def _price(self, event_soup):
         return event_soup.find("span", {"class": "event-card__price"}).text.strip()
