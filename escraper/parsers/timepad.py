@@ -230,7 +230,7 @@ class Timepad(BaseParser):
         return None
 
     def _id(self, event):
-        return self.parser_prefix + event["id"]
+        return self.parser_prefix + str(event["id"])
 
     def _place_name(self, event):
         return self.remove_html_tags(event["organization"]["name"]).strip()
