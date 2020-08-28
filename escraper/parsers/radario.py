@@ -156,12 +156,8 @@ class Radario(BaseParser):
         ).text.strip()
 
     def _id(self, event_soup):
-        return (
-            self.parser_prefix
-            + event_soup.find(
-                "a", {"class": "event-card__title"}
-            )["href"].split("/")[-1]
-        )
+        meta_url = event_soup.find("meta", property="og:url")["content"]
+        return meta_url[meta_url.rfind("/")+1:]
 
     def _place_name(self, event_soup):
         return (
