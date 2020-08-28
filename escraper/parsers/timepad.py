@@ -4,7 +4,7 @@ import itertools
 import re
 import warnings
 
-from .base import BaseParser
+from .base import BaseParser, ALL_EVENT_TAGS
 from .utils import STRPTIME
 from ..emoji import add_emoji
 
@@ -81,7 +81,7 @@ class Timepad(BaseParser):
             event = None
 
         else:
-            tags = tags or self.ALL_EVENT_TAGS
+            tags = tags or ALL_EVENT_TAGS
             event = self.parse(response_json, tags=tags)
 
         return event
@@ -134,7 +134,7 @@ class Timepad(BaseParser):
 
         tags : list of tags, default all available event tags
             Event tags (title, id, url etc.,
-            see all tags in 'escraper.parsers.base.BaseParser.ALL_EVENT_TAGS')
+            see all tags in 'escraper.ALL_EVENT_TAGS')
 
         Examples:
         ---------
@@ -165,7 +165,7 @@ class Timepad(BaseParser):
         if "fields" not in request_params:
             request_params["fields"] = ", ".join(self.FIELDS)
 
-        tags = tags or self.ALL_EVENT_TAGS
+        tags = tags or ALL_EVENT_TAGS
 
         url = self.events_api + ".json"
         res = self._request_get(url, params=request_params, headers=self.headers)

@@ -7,23 +7,25 @@ import requests
 from bs4 import BeautifulSoup
 
 
+ALL_EVENT_TAGS = (
+    "adress",
+    "category",
+    "date_from",
+    "date_to",
+    "date_from_to",
+    "id",
+    "place_name",
+    "post_text",
+    "poster_imag",
+    "price",
+    "title",
+    "url",
+    "is_registration_open",
+)
+
+
 class BaseParser(ABC):
     MAX_NUMBER_CONNECTION_ATTEMPTS = 3
-    ALL_EVENT_TAGS = (
-        "adress",
-        "category",
-        "date_from",
-        "date_to",
-        "date_from_to",
-        "id",
-        "place_name",
-        "post_text",
-        "poster_imag",
-        "price",
-        "title",
-        "url",
-        "is_registration_open",
-    )
 
     @abstractmethod
     def get_event(self):
@@ -85,7 +87,7 @@ class BaseParser(ABC):
     def parse(self, event_data, tags=None):
         if tags is None:
             raise ValueError(
-                "'tags' for event required (see escraper.parsers.base.BaseParser.ALL_EVENT_TAGS)."
+                "'tags' for event required (see escraper.ALL_EVENT_TAGS)."
             )
 
         data = dict()
@@ -95,7 +97,7 @@ class BaseParser(ABC):
             except AttributeError:
                 raise TypeError(
                     f"Unsupported event tag found: {tag}.\n"
-                    f"All available event tags: {self.ALL_EVENT_TAGS}."
+                    f"All available event tags: {ALL_EVENT_TAGS}."
                 )
 
         DataStorage = namedtuple("event", tags)

@@ -4,7 +4,7 @@ from datetime import datetime
 
 from bs4 import BeautifulSoup
 
-from .base import BaseParser
+from .base import BaseParser, ALL_EVENT_TAGS
 from ..emoji import add_emoji
 
 
@@ -80,7 +80,7 @@ class Radario(BaseParser):
         """
         # if category is "", then get events from all categories
         category = category or [""]
-        tags = tags or self.ALL_EVENT_TAGS
+        tags = tags or ALL_EVENT_TAGS
         request_params = request_params or dict()
 
         request_params["from"] = self.date_for_request(date_from)
