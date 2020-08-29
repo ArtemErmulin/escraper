@@ -157,7 +157,7 @@ class Radario(BaseParser):
 
     def _id(self, event_soup):
         meta_url = event_soup.find("meta", property="og:url")["content"]
-        return meta_url[meta_url.rfind("/")+1:]
+        return self.parser_prefix + meta_url[meta_url.rfind("/")+1:]
 
     def _place_name(self, event_soup):
         return (
@@ -187,7 +187,7 @@ class Radario(BaseParser):
         )
 
     def _url(self, event_soup):
-        return self.events_api + str(self._id(event_soup))
+        return self.events_api + self._id(event_soup).replace(self.parser_prefix, "")
 
     def _is_registration_open(self, event_soup):
         return self._price(event_soup) != "Билетов нет"
