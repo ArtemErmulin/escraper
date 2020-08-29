@@ -172,20 +172,22 @@ class Radario(BaseParser):
         )
 
     def _poster_imag(self, event_soup):
-        event_card_image = event_soup.find("img", {"class": "event-card__image"})
-        if event_card_image is not None:
+        event_card_image = event_soup.find("img", {"class": "event-page__image"})
+        if event_card_image is not None and "DefaultEventImage" not in event_card_image["src"]:
             return event_card_image["src"]
 
     def _price(self, event_soup):
-        return event_soup.find("span", {"class": "event-card__price"}).text.strip()
+        return event_soup.find(
+            "button", {"class": "c-button c-button--primary c-button--medium"}
+        ).text.strip()
 
     def _title(self, event_soup):
         return add_emoji(
-            event_soup.find("a", {"class": "event-card__title"}).text.strip()
+            event_soup.find("h1", {"class": "event-page__title"}).text.strip()
         )
 
     def _url(self, event_soup):
         return self.events_api + str(self._id(event_soup))
 
     def _is_registration_open(self, event_soup):
-        return self._price(event_soup) != "Билетов нет" and self._date(event_soup) is not None
+        return self._price(event_soup) != "Билетов нет"
