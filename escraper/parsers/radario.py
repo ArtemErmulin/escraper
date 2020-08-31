@@ -166,7 +166,7 @@ class Radario(BaseParser):
             hour = int(strtime_from.split(":")[0])
             minute = int(strtime_from.split(":")[1])
 
-        if hour and minute:
+        if hour is not None and minute is not None:
             return datetime.now().replace(
                 month=month,
                 day=day,
@@ -203,7 +203,7 @@ class Radario(BaseParser):
             hour = int(strtime_from.split(":")[0])
             minute = int(strtime_from.split(":")[1])
 
-        if hour and minute:
+        if hour is not None and minute is not None:
             return datetime.now().replace(
                 month=month,
                 day=day,
