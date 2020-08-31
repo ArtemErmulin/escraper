@@ -145,7 +145,7 @@ class Radario(BaseParser):
         """
         strfdatetime = event_soup.find(
             "span", {"class": "event-page__date mt-2"}
-        ).text.strip()
+        ).text.strip().replace("\n", "")
 
         day = int(strfdatetime[:2])
         month = int(monthes[strfdatetime[3:].split(",")[0]])
@@ -160,7 +160,7 @@ class Radario(BaseParser):
             minute = int(strtime_from.split(":")[1])
 
         # one day, two hour points
-        elif re.match(r"\d{2} \w+, \d{2}:\d{2}-\d{2}:\d{2}", strfdatetime):
+        elif re.match(r"\d{2} \w+,.+\d{2}:\d{2}-\d{2}:\d{2}", strfdatetime):
             strtime_from = strfdatetime[-11:-6]
 
             hour = int(strtime_from.split(":")[0])
@@ -184,7 +184,7 @@ class Radario(BaseParser):
         """
         strfdatetime = event_soup.find(
             "span", {"class": "event-page__date mt-2"}
-        ).text.strip()
+        ).text.strip().replace("\n", "")
 
         day = int(strfdatetime[:2])
         month = int(monthes[strfdatetime[3:].split(",")[0]])
@@ -197,7 +197,7 @@ class Radario(BaseParser):
             return None
 
         # one day, two hour points
-        elif re.match(r"\d{2} \w+, \d{2}:\d{2}-\d{2}:\d{2}", strfdatetime):
+        elif re.match(r"\d{2} \w+,.+\d{2}:\d{2}-\d{2}:\d{2}", strfdatetime):
             strtime_from = strfdatetime[-5:]
 
             hour = int(strtime_from.split(":")[0])
