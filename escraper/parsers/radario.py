@@ -128,11 +128,27 @@ class Radario(BaseParser):
             "span", {"class": "text-secondary mt-2"}
         ).text.strip()
 
+        full_adress = (
+            full_adress
+            .replace(", Центральный район", "")
+        )
+
+        # remove zip code
+        full_adress = re.sub(r" \d+ ", " ", full_adress)
+        full_adress = re.sub(r"^\d+, ", "", full_adress)
+
         if "онлайн" in full_adress.lower():
             adress = "Онлайн"
         else:
-            end_idx = full_adress.find(", Санкт-Петербург")
-            adress = full_adress[:end_idx]
+            if full_adress.find(", Санкт-Петербург") != -1:
+                end_idx = full_adress.find(", Санкт-Петербург")
+                adress = full_adress[:end_idx]
+
+            elif full_adress.find("Санкт-Петербург, ") != -1:
+                adress = full_adress.replace("Санкт-Петербург, ", "")
+
+            else:
+                adress = full_adress
 
         return adress
 
