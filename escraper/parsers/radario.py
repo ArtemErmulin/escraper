@@ -1,3 +1,4 @@
+import re
 import requests
 import warnings
 from datetime import datetime
@@ -142,7 +143,25 @@ class Radario(BaseParser):
         """
         Parse from html page string date_from_to instead
         """
-        return None
+        strfdatetime = event_soup.find(
+            "span", {"class": "event-page__date mt-2"}
+        ).text.strip()
+
+        # one day event in format '31 августа, 19:00'
+        if re.match(r"\d{2} \w+, \d{2}:\d{2}", strfdatetime):
+            day = int(strfdatetime[:2])
+            month = int(monthes[strfdatetime[3:].split(",")[0]])
+            hour = int(strfdatetime[-5:].split(":")[0])
+            minute = int(strfdatetime[-5:].split(":")[1])
+
+            return datetime.now().replace(
+                month=month,
+                day=day,
+                hour=hour,
+                minute=minute,
+                second=0,
+                microsecond=0,
+            )
 
     def _date_to(self, event_soup):
         """
