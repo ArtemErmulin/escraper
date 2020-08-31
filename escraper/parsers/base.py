@@ -144,3 +144,16 @@ class BaseParser(ABC):
                 print("Retry connection")
 
         return response
+
+    def prepare_post_text(self, post_text):
+        if len(post_text) > 550:
+            sentences = post_text.split(".")
+            post = ""
+            for s in sentences:
+                if len(post) < 365:
+                    post = post + s + "."
+                else:
+                    post_text = post
+                    break
+
+        return post_text

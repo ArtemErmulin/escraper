@@ -232,10 +232,11 @@ class Radario(BaseParser):
             )
 
     def _post_text(self, event_soup):
-        return self.remove_html_tags(
+        post_text = self.remove_html_tags(
             event_soup.find("meta", property="og:description")["content"]
             .replace("<br/>", "\n")
         )
+        return self.prepare_post_text(post_text)
 
     def _poster_imag(self, event_soup):
         event_card_image = event_soup.find("img", {"class": "event-page__image"})

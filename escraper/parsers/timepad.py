@@ -243,17 +243,7 @@ class Timepad(BaseParser):
         else:
             post_text = self.remove_html_tags(event["description_short"])
 
-        if len(post_text) > 550:
-            sentences = post_text.split(".")
-            post = ""
-            for s in sentences:
-                if len(post) < 365:
-                    post = post + s + "."
-                else:
-                    post_text = post
-                    break
-
-        return post_text
+        return self.prepare_post_text(post_text)
 
     def _poster_imag(self, event):
         if "poster_image" not in event:
