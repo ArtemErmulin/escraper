@@ -147,13 +147,26 @@ class Radario(BaseParser):
             "span", {"class": "event-page__date mt-2"}
         ).text.strip()
 
+        day = int(strfdatetime[:2])
+        month = int(monthes[strfdatetime[3:].split(",")[0]])
+        hour = None
+        minute = None
+
         # one day event in format '31 августа, 19:00'
         if re.match(r"\d{2} \w+, \d{2}:\d{2}", strfdatetime):
-            day = int(strfdatetime[:2])
-            month = int(monthes[strfdatetime[3:].split(",")[0]])
-            hour = int(strfdatetime[-5:].split(":")[0])
-            minute = int(strfdatetime[-5:].split(":")[1])
+            strtime_from = strfdatetime[-5:]
 
+            hour = int(strtime_from.split(":")[0])
+            minute = int(strtime_from.split(":")[1])
+
+        # one day, two hour points
+        elif re.match(r"\d{2} \w+, \d{2}:\d{2}-\d{2}:\d{2}", strfdatetime):
+            strtime_from = strfdatetime[-11:-6]
+
+            hour = int(strtime_from.split(":")[0])
+            minute = int(strtime_from.split(":")[1])
+
+        if hour and minute:
             return datetime.now().replace(
                 month=month,
                 day=day,
@@ -162,12 +175,46 @@ class Radario(BaseParser):
                 second=0,
                 microsecond=0,
             )
+        else:
+            print(f"Unknown datetime string: {strfdatetime}")
 
     def _date_to(self, event_soup):
         """
         Parse from html page string date_from_to instead
         """
-        return None
+        strfdatetime = event_soup.find(
+            "span", {"class": "event-page__date mt-2"}
+        ).text.strip()
+
+        day = int(strfdatetime[:2])
+        month = int(monthes[strfdatetime[3:].split(",")[0]])
+        hour = None
+        minute = None
+
+        # one day event in format '31 августа, 19:00'
+        # date_to is unknown
+        if re.match(r"\d{2} \w+, \d{2}:\d{2}", strfdatetime):
+            return None
+
+        # one day, two hour points
+        elif re.match(r"\d{2} \w+, \d{2}:\d{2}-\d{2}:\d{2}", strfdatetime):
+            strtime_from = strfdatetime[-5:]
+
+            hour = int(strtime_from.split(":")[0])
+            minute = int(strtime_from.split(":")[1])
+
+        if hour and minute:
+            return datetime.now().replace(
+                month=month,
+                day=day,
+                hour=hour,
+                minute=minute,
+                second=0,
+                microsecond=0,
+            )
+        else:
+            print(f"Unknown datetime string: {strfdatetime}")
+
 
     def _date_from_to(self, event_soup):
         return event_soup.find(
