@@ -163,6 +163,14 @@ class Radario(BaseParser):
             "span", {"class": "event-page__date mt-2"}
         ).text.strip().replace("\n", "")
 
+        # can parse from-to datetime string formats:
+        # - "dd month, HH:MM-HH:MM"
+        # - "dd month, HH:MM"
+        if not re.match(r"^\d\d \w+,", strfdatetime):
+            raise ValueError(
+                f"Unknown radario from-to datetime string: {strfdatetime!r}"
+            )
+
         day = int(strfdatetime[:2])
         month = int(monthes[strfdatetime[3:].split(",")[0]])
         hour = None
