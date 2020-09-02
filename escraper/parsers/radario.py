@@ -155,90 +155,102 @@ class Radario(BaseParser):
     def _category(self, event_soup):
         return event_soup.find("a", {"class": "event-page__tag"})["href"][1:]
 
-    def _date_from(self, event_soup):
+    def date_from_to(self, event_soup):
         """
-        Parse from html page string date_from_to instead
+        Parse from html page string
         """
         strfdatetime = event_soup.find(
             "span", {"class": "event-page__date mt-2"}
         ).text.strip().replace("\n", "")
+
+        day_from = None
+        month_from = None
+        hour_from = None
+        minute_from = None
+
+        day_to = None
+        month_to = None
+        hour_to = None
+        minute_to = None
 
         # can parse from-to datetime string formats:
         # - "dd month, HH:MM-HH:MM"
         # - "dd month, HH:MM"
-        if not re.match(r"^\d\d \w+,", strfdatetime):
+        # - "dd-dd month"
+        if (
+            not re.match(r"^\d\d \w+,", strfdatetime)
+            and not re.match(r"^\d\d-\d\d \w+$", strfdatetime)
+        ):
             raise ValueError(
-                f"Unknown radario from-to datetime string: {strfdatetime!r}"
+                f"Unknown radario from-to datetime string: {strfdatetime!r}.\n"
+                f"Event url: {self._url(event_soup)}"
             )
 
-        day = int(strfdatetime[:2])
-        month = int(monthes[strfdatetime[3:].split(",")[0]])
-        hour = None
-        minute = None
+        # format "day month, hour:minute-hour:minute"
+        if re.match(r"^\d\d \w+,", strfdatetime):
+            day_from = int(strfdatetime[:2])
+            month_from = int(monthes[strfdatetime[3:].split(",")[0]])
 
-        # one day event in format '31 августа, 19:00'
-        if re.match(r"\d{2} \w+, \d{2}:\d{2}", strfdatetime):
-            strtime_from = strfdatetime[-5:]
+            day_to = day_from
+            month_to = month_from
 
-            hour = int(strtime_from.split(":")[0])
-            minute = int(strtime_from.split(":")[1])
+            # one day event in format 'dd month, HH:MM'
+            if re.match(r"\d{2} \w+, \d{2}:\d{2}$", strfdatetime):
+                strtime_from = strfdatetime[-5:]
 
-        # one day, two hour points
-        elif re.match(r"\d{2} \w+,.+\d{2}:\d{2}-\d{2}:\d{2}", strfdatetime):
-            strtime_from = strfdatetime[-11:-6]
+                hour_from = int(strtime_from.split(":")[0])
+                minute_from = int(strtime_from.split(":")[1])
 
-            hour = int(strtime_from.split(":")[0])
-            minute = int(strtime_from.split(":")[1])
+            # one day, two hour points
+            elif re.match(r"\d{2} \w+,.+\d{2}:\d{2}-\d{2}:\d{2}", strfdatetime):
+                strtime_from = strfdatetime[-11:-6]
+                hour_from = int(strtime_from.split(":")[0])
+                minute_from = int(strtime_from.split(":")[1])
 
-        if hour is not None and minute is not None:
-            return datetime.now().replace(
-                month=month,
-                day=day,
-                hour=hour,
-                minute=minute,
+                strtime_to = strfdatetime[-5:]
+                hour_to = int(strtime_to.split(":")[0])
+                minute_to = int(strtime_to.split(":")[1])
+
+        elif re.match(r"^\d\d-\d\d \w+$", strfdatetime):
+            day_from = int(strfdatetime[:2])
+            month_from = int(monthes[strfdatetime[6:]])
+            hour_from = 0
+            minute_from = 0
+
+            day_to = int(strfdatetime[3:5])
+            month_to = month_from
+            hour_to = 0
+            minute_to = 0
+
+        daytime_from = datetime.now().replace(
+            month=month_from,
+            day=day_from,
+            hour=hour_from,
+            minute=minute_from,
+            second=0,
+            microsecond=0,
+        )
+
+        if hour_to is not None and minute_to is not None:
+            daytime_to = datetime.now().replace(
+                month=month_to,
+                day=day_to,
+                hour=hour_to,
+                minute=minute_to,
                 second=0,
                 microsecond=0,
             )
         else:
-            print(f"Unknown datetime string: {strfdatetime}")
+            daytime_to = None
+
+        return daytime_from, daytime_to
+
+    def _date_from(self, event_soup):
+        self._date_from_, self._date_to_ = self.date_from_to(event_soup)
+        return self._date_from_
 
     def _date_to(self, event_soup):
-        """
-        Parse from html page string date_from_to instead
-        """
-        strfdatetime = event_soup.find(
-            "span", {"class": "event-page__date mt-2"}
-        ).text.strip().replace("\n", "")
-
-        day = int(strfdatetime[:2])
-        month = int(monthes[strfdatetime[3:].split(",")[0]])
-        hour = None
-        minute = None
-
-        # one day event in format '31 августа, 19:00'
-        # date_to is unknown
-        if re.match(r"\d{2} \w+, \d{2}:\d{2}", strfdatetime):
-            return None
-
-        # one day, two hour points
-        elif re.match(r"\d{2} \w+,.+\d{2}:\d{2}-\d{2}:\d{2}", strfdatetime):
-            strtime_from = strfdatetime[-5:]
-
-            hour = int(strtime_from.split(":")[0])
-            minute = int(strtime_from.split(":")[1])
-
-        if hour is not None and minute is not None:
-            return datetime.now().replace(
-                month=month,
-                day=day,
-                hour=hour,
-                minute=minute,
-                second=0,
-                microsecond=0,
-            )
-        else:
-            print(f"Unknown datetime string: {strfdatetime}")
-
+        return self._date_to_
 
     def _date_from_to(self, event_soup):
         return event_soup.find(
