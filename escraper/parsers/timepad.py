@@ -1,92 +1,14 @@
-from collections import namedtuple
 from datetime import datetime
 import os
 import itertools
-import random
 import re
 import warnings
 
-import requests
-from bs4 import BeautifulSoup
-
-from .base import BaseParser
-
-from .emoji import add_emoji
+from .base import BaseParser, ALL_EVENT_TAGS
+from .utils import STRPTIME
+from ..emoji import add_emoji
 
 
-all_parsers = dict()
-STRPTIME = "%Y-%m-%dT%H:%M:%S%z"
-
-ALL_EVENT_TAGS = (
-    "adress",
-    "category",
-    "date_from",
-    "date_to",
-    "id",
-    "place_name",
-    "post_text",
-    "poster_imag",
-    "price",
-    "title",
-    "url",
-    "is_registration_open",
-)
-
-MAX_NUMBER_CONNECTION_ATTEMPTS = 3
-
-
-def parser_register(cls):
-    all_parsers[cls.name.lower()] = cls
-    return cls
-
-
-def remove_html_tags(data):
-    return BeautifulSoup(data, "html.parser").text
-
-
-def _request_get(*args, **kwargs):
-    """
-    Send get request with specifica arguments.
-
-    To avoid internet connection issues,
-    will catch ConnectionError and retry.
-    """
-    attempts_count = 0
-
-    while True:
-        try:
-            response = requests.get(*args, **kwargs)
-
-            if not response.ok:
-                response_status = response.json()["response_status"]
-
-                warning_msg = (
-                    "Bad response: {status_code}: {message}."
-                    .format(
-                        status_code=response_status["error_code"],
-                        message=response_status["message"],
-                    )
-                )
-
-                if attempts_count == MAX_NUMBER_CONNECTION_ATTEMPTS:
-                    raise ValueError(warning_msg)
-
-                warnings.warn(warning_msg + "\nRetry")
-                attempts_count += 1
-
-            else:
-                break
-
-        except requests.ConnectionError as e:
-            if attempts_count == MAX_NUMBER_CONNECTION_ATTEMPTS:
-                raise e
-            attempts_count += 1
-            print("Retry connection")
-
-    return response
-
-
-@parser_register
 class Timepad(BaseParser):
     """
     Parse ivents from www.timepad.ru by API:
@@ -109,7 +31,8 @@ class Timepad(BaseParser):
     name = "timepad"
     url = "www.timepad.ru"
     events_api = "https://api.timepad.ru/v1/events"
-    FIELDS = (
+    parser_prefix = "TIMEPAD-"
+    FIELDS = (  # event fields in timepad request parameters
         "name",
         "starts_at",
         "organization",
@@ -151,7 +74,7 @@ class Timepad(BaseParser):
             raise ValueError("'event_id' or 'event_url' required.")
 
         url = self.events_api + f"/{event_id}"
-        response_json = _request_get(url, headers=self.headers).json()
+        response_json = self._request_get(url, headers=self.headers).json()
 
         if not is_moderated(response_json):
             print("Event is not moderated")
@@ -211,7 +134,7 @@ class Timepad(BaseParser):
 
         tags : list of tags, default all available event tags
             Event tags (title, id, url etc.,
-            see all tags in 'escraper.parsers.ALL_EVENT_TAGS')
+            see all tags in 'escraper.ALL_EVENT_TAGS')
 
         Examples:
         ---------
@@ -245,7 +168,7 @@ class Timepad(BaseParser):
         tags = tags or ALL_EVENT_TAGS
 
         url = self.events_api + ".json"
-        res = _request_get(url, params=request_params, headers=self.headers)
+        res = self._request_get(url, params=request_params, headers=self.headers)
 
         events_data = list()
         for response_json in res.json()["values"]:
@@ -256,26 +179,6 @@ class Timepad(BaseParser):
 
         return events_data
 
-    def parse(self, response_json, tags=None):
-        if tags is None:
-            raise ValueError(
-                "'tags' for event required (see escraper.parsers.ALL_EVENT_TAGS)."
-            )
-
-        data = dict()
-        for tag in tags:
-            try:
-                data[tag] = getattr(self, "_" + tag)(response_json)
-            except AttributeError:
-                raise TypeError(
-                    f"Unsupported event tag found: {tag}.\n"
-                    f"All available event tags: {ALL_EVENT_TAGS}."
-                )
-
-        DataStorage = namedtuple("event", tags)
-
-        return DataStorage(**data)
-
     def _adress(self, event):
         if "city" not in event["location"]:
             address = "Онлайн"
@@ -285,7 +188,7 @@ class Timepad(BaseParser):
                 if event["location"]["city"] in ["Санкт-Петербург"]:
                     address = "Санкт-Петербург"
 
-                elif event["location"]["city"]=="Без города":
+                elif event["location"]["city"] == "Без города":
                     address = "Онлайн"
 
                 elif "coordinates" in event["location"]:
@@ -301,7 +204,7 @@ class Timepad(BaseParser):
             else:
                 address = event["location"]["address"]
 
-        return remove_html_tags(address)
+        return self.remove_html_tags(address)
 
     def _category(self, event):
         """
@@ -320,31 +223,31 @@ class Timepad(BaseParser):
             return dt.replace(tzinfo=None)
         return None
 
+    def _date_from_to(self, event):
+        """
+        Timepad return date_from and date_to instead.
+        """
+        return None
+
     def _id(self, event):
-        return event["id"]
+        return self.parser_prefix + str(event["id"])
 
     def _place_name(self, event):
-        return remove_html_tags(event["organization"]["name"]).strip()
+        return self.remove_html_tags(event["organization"]["name"]).strip()
 
     def _post_text(self, event):
         post_text = ""
 
-        if not remove_html_tags(event["description_short"]):
-            post_text = remove_html_tags(event["description_html"])
-        else: 
-            post_text = remove_html_tags(event["description_short"])
+        if event.get("description_short"):
+            post_text = self.remove_html_tags(event["description_short"])
 
-        if len(post_text) > 550:
-            sentences=post_text.split('.')
-            post = ''
-            for s in sentences:
-                if len(post) < 365:
-                    post = post + s + '.'
-                else:
-                    post_text = post
-                    break
-                    
-        return post_text
+        elif event.get("description_html"):
+            post_text = self.remove_html_tags(event["description_html"])
+
+        else:
+            post_text = ""
+
+        return self.prepare_post_text(post_text)
 
     def _poster_imag(self, event):
         if "poster_image" not in event:
@@ -356,14 +259,13 @@ class Timepad(BaseParser):
         if event["registration_data"]["is_registration_open"]:
             price_min_in_answer = event["registration_data"]["price_min"]
             price_min = event["registration_data"]["price_max"]
-            
-            for ticket in event['ticket_types']:
-                if ticket['price']==price_min_in_answer and ticket['status']=='ok':
-                    price_min=price_min_in_answer
-                    break
-                elif ticket['price']<price_min and ticket['status']=='ok':
-                    price_min=ticket['price']
 
+            for ticket in event["ticket_types"]:
+                if ticket["price"] == price_min_in_answer and ticket["status"] == "ok":
+                    price_min = price_min_in_answer
+                    break
+                elif ticket["price"] < price_min and ticket["status"] == "ok":
+                    price_min = ticket["price"]
 
             if price_min == 0:
                 price_text = "Бесплатно"
@@ -376,7 +278,7 @@ class Timepad(BaseParser):
         return price_text
 
     def _title(self, event):
-        return add_emoji(remove_html_tags(event["name"]))
+        return add_emoji(self.remove_html_tags(event["name"]))
 
     def _url(self, event):
         return event["url"]
@@ -403,7 +305,7 @@ class Timepad(BaseParser):
         ]
         """
         url = "https://api.timepad.ru/v1/dictionary/event_categories"
-        return _request_get(url, headers=self.headers).json()["values"]
+        return self._request_get(url, headers=self.headers).json()["values"]
 
     @property
     def event_statuses(self):
@@ -423,7 +325,7 @@ class Timepad(BaseParser):
         ]
         """
         url = "https://api.timepad.ru/v1/dictionary/event_statuses"
-        return _request_get(url, headers=self.headers).json()["values"]
+        return self._request_get(url, headers=self.headers).json()["values"]
 
     @property
     def tickets_statuses(self):
@@ -444,7 +346,7 @@ class Timepad(BaseParser):
         ]
         """
         url = "https://api.timepad.ru/v1/dictionary/tickets_statuses"
-        return _request_get(url, headers=self.headers).json()["values"]
+        return self._request_get(url, headers=self.headers).json()["values"]
 
 
 def is_moderated(response_json):
