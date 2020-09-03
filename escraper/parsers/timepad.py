@@ -238,10 +238,14 @@ class Timepad(BaseParser):
     def _post_text(self, event):
         post_text = ""
 
-        if not self.remove_html_tags(event["description_short"]):
-            post_text = self.remove_html_tags(event["description_html"])
-        else:
+        if event.get("description_short"):
             post_text = self.remove_html_tags(event["description_short"])
+
+        elif event.get("description_html"):
+            post_text = self.remove_html_tags(event["description_html"])
+
+        else:
+            post_text = ""
 
         return self.prepare_post_text(post_text)
 
