@@ -58,7 +58,6 @@ class BaseParser(ABC):
     @abstractmethod
     def _id(self) -> str:
         """PARSER_PREFIX-ID"""
-        pass
 
     @abstractmethod
     def _place_name(self) -> str:

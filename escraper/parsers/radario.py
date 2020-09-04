@@ -47,8 +47,7 @@ class Radario(BaseParser):
         pass
 
     def get_event(self, *args, **kwargs):
-        # TODO
-        return None
+        """Currently not implemented"""
 
     def get_events(self, date_from, date_to, *, category=None, request_params=None, tags=None):
         """

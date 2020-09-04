@@ -41,7 +41,7 @@ def add_emoji(title):
         if title.lower().find(word) != -1:
             emoji = random.choice(emoji_dict[word])
             break
-    if emoji == None:
+    if emoji is None:
         emoji = random.choice(emoji_dict["другое"])
 
     return f"{emoji} {title}"
