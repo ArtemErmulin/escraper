@@ -1,12 +1,6 @@
 # escraper
 
-</div>
-<div align="center">
-  
 [![CodeFactor](https://www.codefactor.io/repository/github/artemermulin/escraper/badge/master)](https://www.codefactor.io/repository/github/artemermulin/escraper/overview/master)
-
-</div>
-
 
 Event Scraper
 
