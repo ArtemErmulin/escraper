@@ -25,7 +25,7 @@ def test_timepad_get_event_by_url(timepad, events):
 
 
 def test_timepad_get_event_by_id(timepad, events):
-    assert timepad.get_event(event_id=events[0].id)
+    assert timepad.get_event(event_id=events[0].id.replace(Timepad.parser_prefix, ""))
 
 
 def test_timepad_event_catogories(timepad):
