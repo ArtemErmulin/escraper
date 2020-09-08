@@ -3,8 +3,12 @@ from datetime import datetime as dt
 from escraper.parsers import Timepad, Radario
 
 
-def test_auth():
-    pass
+def test_timepad():
+    # get timepad token from environ
+    t = Timepad()
+    events = t.get_events()
+
+    assert events
 
 
 def test_radario():
@@ -12,4 +16,6 @@ def test_radario():
 
     date_from_dt = dt.now()
     date_to_dt = dt.now()
-    e = r.get_events(date_from_dt, date_to_dt)
+    events = r.get_events(date_from_dt, date_to_dt)
+
+    assert events
