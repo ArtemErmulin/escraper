@@ -15,6 +15,19 @@ def test_timepad_get_events(timepad):
     assert timepad.get_events()
 
 
+@pytest.fixture
+def events():
+    return Timepad().get_events()
+
+
+def test_timepad_get_event_by_url(timepad, events):
+    assert timepad.get_event(event_url=events[0].url)
+
+
+def test_timepad_get_event_by_id(timepad, events):
+    assert timepad.get_event(event_id=events[0].id)
+
+
 def test_timepad_event_catogories(timepad):
     assert timepad.event_categories
 
