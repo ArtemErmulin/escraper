@@ -29,31 +29,31 @@ class BaseParser(ABC):
 
     @abstractmethod
     def get_event(self):
-        pass
+        """Get one event by url / event_id"""
 
     @abstractmethod
     def get_events(self) -> list:
-        pass
+        """Get events by request parameters (date from-to, keywords etc.)"""
 
     @abstractmethod
     def _adress(self) -> str:
-        pass
+        """Event adress"""
 
     @abstractmethod
     def _category(self) -> str:
-        pass
+        """Event category"""
 
     @abstractmethod
     def _date_from(self) -> datetime:
-        pass
+        """Event date from"""
 
     @abstractmethod
     def _date_to(self) -> datetime:
-        pass
+        """Event date to (may be None)"""
 
     @abstractmethod
     def _date_from_to(self) -> str:
-        pass
+        """Event date from-to in readable string format (may be None)"""
 
     @abstractmethod
     def _id(self) -> str:
@@ -61,27 +61,27 @@ class BaseParser(ABC):
 
     @abstractmethod
     def _place_name(self) -> str:
-        pass
+        """Event place name"""
 
     @abstractmethod
     def _post_text(self) -> str:
-        pass
+        """Event post text"""
 
     @abstractmethod
     def _poster_imag(self) -> str:
-        pass
+        """Event poster image (may be None)"""
 
     @abstractmethod
     def _price(self) -> str:
-        pass
+        """Event ticket price"""
 
     @abstractmethod
     def _title(self) -> str:
-        pass
+        """Event title"""
 
     @abstractmethod
     def _is_registration_open(self) -> bool:
-        pass
+        """Event registration status"""
 
     def parse(self, event_data, tags=None):
         if tags is None:
