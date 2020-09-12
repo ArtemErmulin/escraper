@@ -5,4 +5,4 @@ idna==2.10
 requests==2.24.0
 soupsieve==2.0.1
 urllib3==1.25.10
-find_metro@git+https://github.com/magusch/Address_to_subway_name.git@76c2684c883f980582cf98e5939585dd1074c9c0
+find_metro@git+https://github.com/magusch/Address_to_subway_name.git@master
