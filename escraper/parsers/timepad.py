@@ -4,6 +4,8 @@ import itertools
 import re
 import warnings
 
+from find_metro.metro import get_subway_name
+
 from .base import BaseParser, ALL_EVENT_TAGS
 from .utils import STRPTIME
 from ..emoji import add_emoji
@@ -65,6 +67,8 @@ class Timepad(BaseParser):
             self._token = token
 
         self.headers = dict(Authorization=f"Bearer {self._token}")
+
+        self.find_metro = get_subway_name(city_id = 2) # 2 - Санкт петербург
 
     def get_event(self, event_id=None, event_url=None, tags=None):
         if event_url is not None:
@@ -203,6 +207,9 @@ class Timepad(BaseParser):
 
             else:
                 address = event["location"]["address"]
+                metro_station = self.find_metro.get_subway(address)
+                if metro_station is not None:
+                    address = f'{address}, м.{metro_station}'
 
         return self.remove_html_tags(address)
 
