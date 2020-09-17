@@ -1,7 +1,7 @@
+import warnings
 from abc import ABC, abstractmethod
 from datetime import datetime
 from collections import namedtuple
-import warnings
 
 import requests
 from bs4 import BeautifulSoup
@@ -120,7 +120,14 @@ class BaseParser(ABC):
                 response = requests.get(*args, **kwargs)
 
                 if not response.ok:
-                    response_status = response.json()["response_status"]
+                    if response.content:
+                        response_status = response.json()["response_status"]
+
+                    else:
+                        response_status = dict(
+                            error_code="None",
+                            message="response content is empty",
+                        )
 
                     warning_msg = "Bad response: {status_code}: {message}.".format(
                         status_code=response_status["error_code"],
@@ -128,7 +135,9 @@ class BaseParser(ABC):
                     )
 
                     if attempts_count == self.MAX_NUMBER_CONNECTION_ATTEMPTS:
-                        raise ValueError(warning_msg)
+                        response = None
+                        warnings.warn(warning_msg + "\nBreak (event counts 0)")
+                        break
 
                     warnings.warn(warning_msg + "\nRetry")
                     attempts_count += 1
