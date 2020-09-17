@@ -97,10 +97,14 @@ class Radario(BaseParser):
                 url = f"{self.url}{cat}"
                 response = self._request_get(url, params=request_params)
 
-                # get only 20 events
-                soup = BeautifulSoup(response.text, "html.parser")
+                if response:
+                    # get only 20 events
+                    soup = BeautifulSoup(response.text, "html.parser")
+                    list_event_from_soup = soup.find_all("div", {"class": "event-card"})
 
-                list_event_from_soup = soup.find_all("div", {"class": "event-card"})
+                else:
+                    list_event_from_soup = list()
+
                 for event_card in list_event_from_soup:
                     event_id = event_card.find(
                         "a", {"class": "event-card__title"}

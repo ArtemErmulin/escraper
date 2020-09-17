@@ -175,11 +175,12 @@ class Timepad(BaseParser):
         res = self._request_get(url, params=request_params, headers=self.headers)
 
         events_data = list()
-        for response_json in res.json()["values"]:
-            if is_moderated(response_json):
-                events_data.append(self.parse(response_json, tags=tags))
-            else:
-                events_data.append(None)
+        if res:
+            for response_json in res.json()["values"]:
+                if is_moderated(response_json):
+                    events_data.append(self.parse(response_json, tags=tags))
+                else:
+                    events_data.append(None)
 
         return events_data
 
