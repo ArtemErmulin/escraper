@@ -18,42 +18,52 @@ Event Scraper
 
 Istalling:
 ```bash
-pip install git+https://git@github.com/ArtemErmulin/escraper.git@master#egg=escraper-0.0.5
+pip install git+https://git@github.com/ArtemErmulin/escraper.git@master#egg=escraper-1.1.1
 ```
 
 # Usage
-```python
->>> from escraper.parsers import Timepad
->>> timepad = Timepad()
-```
 Available sites-parsers:
 ```python
->>> from escraper import all_parsers
+>>> from escraper.paresrs import all_parsers
 >>> all_parsers
-{'timepad': escraper.parsers.Timepad}
+{'timepad': escraper.parsers.timepad.Timepad,
+ 'radario': escraper.parsers.radario.Radario}
 ```
+
 ## Timepad
+```python
+>>> from escraper import Timepad
+```
+
+For using timepad parser, you need timepad token. There are several ways to apply you token:
+- as argument `token` in `Timepad` class
+```python
+>>> timepad = Timepad(token=<your-token>)
+```
+- as environ variable `TIMEPAD_TOKEN`. Then don't need any argument in `Timepad` class
+```python
+>>> import os
+
+>>> "TIMEPAD_TOKEN" in os.environ
+True
+>>> timepad = Timepad()
+```
+
 Get event post by event_id:
 ```python
->>> timepad.get_event(event_id=1327190)
-<event post>
+>>> timepad.get_event(event_id=1234567)
+<event namedtuple>
 ```
 
 or by url:
 ```python
->>> event_url = "https://excava.timepad.ru/event/1327190/"
+>>> event_url = "https://timepad.ru/event/1234567/"
 >>> timepad.get_event(event_url=event_url)
-<event post>
-```
-
-Get event data as named tuple:
-```python
->>> timepad.get_event(event_id=1327190)
-<named tuple event data>
+<event namedtuple>
 ```
 
 Get events by parameters (for more see `Timepad.get_events` docstring):
 ```python
 >>> timepad.get_events(request_params=params)
-<list 10 event data namedtuple by city "Санкт-Петербург">
+<list events data namedtuple>
 ```
