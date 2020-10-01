@@ -83,7 +83,7 @@ class Timepad(BaseParser):
 
         return event
 
-    def get_events(self, organization=None, request_params=None, tags=None):
+    def get_events(self, request_params=None, tags=None):
         """
         Parameters:
         -----------
