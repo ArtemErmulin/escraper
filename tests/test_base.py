@@ -1,50 +1,156 @@
-from datetime import datetime as dt
+import os
+from datetime import datetime
 
 import pytest
+import requests
 
 from escraper.parsers import Timepad, Radario
 
 
+#######################################
+## timepad token
+#######################################
+@pytest.fixture
+def remove_token(monkeypatch):
+    mock_environ = dict()
+    monkeypatch.setattr(os, "environ", mock_environ)
+
+
+def test_timepad_token_without(remove_token):
+    with pytest.raises(ValueError):
+        Timepad()
+
+
+def test_timepad_token_in_args():
+    assert "TIMEPAD_TOKEN" in os.environ
+    token = os.environ.get("TIMEPAD_TOKEN")
+    Timepad(token=token)
+
+
+def test_timepad_token_in_environ():
+    assert "TIMEPAD_TOKEN" in os.environ
+    Timepad()
+
+
+class Response:
+    def __init__(self, content=None, ok=None, json_items=None):
+        self.content = content
+        self.ok = ok
+        self.json_items = json_items
+
+    def json(self):
+        return dict(**self.json_items)
+
+
+#######################################
+## timepad get_event
+#######################################
+timepad_response_event = dict(
+    location=dict(),
+    categories=[dict(name="test")],
+    starts_at="1900-01-01T00:00:00+0000",
+    id=1,
+    organization=dict(name="test"),
+    registration_data=dict(
+        is_registration_open=True,
+        price_min=0,
+        price_max=1,
+    ),
+    ticket_types=[],
+    name="test",
+    url="https://test.test",
+    moderation_status="moderated",
+)
+
 
 @pytest.fixture
-def timepad():
-    return Timepad()
+def requests_get_event(monkeypatch):
+    def get(*args, **kwargs):
+        return Response(ok=True, json_items=timepad_response_event)
+
+    monkeypatch.setattr(requests, "get", get)
 
 
-def test_timepad_get_events(timepad):
-    assert timepad.get_events()
+def test_timepad_get_event_by_id(requests_get_event):
+    Timepad().get_event(event_id=12345)
+
+
+def test_timepad_get_event_by_url(requests_get_event):
+    Timepad().get_event(event_url="https://test.test/event/12345/")
+
+
+def test_timepad_get_event_with_tags(requests_get_event):
+    tags = ("adress", "category")
+    event = Timepad().get_event(event_id=12345, tags=tags)
+    assert event._fields == tags
+
+
+def test_timepad_get_event_without_args(requests_get_event):
+    with pytest.raises(ValueError):
+        Timepad().get_event()
 
 
 @pytest.fixture
-def events():
-    return Timepad().get_events()
+def requests_get_event_not_moderated(monkeypatch):
+    timepad_response_event = dict(
+        moderation_status="not_moderated",
+    )
+    def get(*args, **kwargs):
+        return Response(ok=True, json_items=timepad_response_event)
+
+    monkeypatch.setattr(requests, "get", get)
 
 
-def test_timepad_get_event_by_url(timepad, events):
-    assert timepad.get_event(event_url=events[0].url)
+def test_timepad_get_event_not_moderated(requests_get_event_not_moderated):
+    assert Timepad().get_event(event_id=12345) is None
 
 
-def test_timepad_get_event_by_id(timepad, events):
-    assert timepad.get_event(event_id=events[0].id.replace(Timepad.parser_prefix, ""))
+#######################################
+## timepad get_events
+#######################################
+@pytest.fixture
+def requests_get_events(monkeypatch):
+    def get(*args, **kwargs):
+        return Response(ok=True, json_items=dict(values=[timepad_response_event]))
+
+    monkeypatch.setattr(requests, "get", get)
 
 
-def test_timepad_event_catogories(timepad):
-    assert timepad.event_categories
+def test_timepad_get_events(requests_get_events):
+    assert len(Timepad().get_events()) == 1
 
 
-def test_timepad_event_statuses(timepad):
-    assert timepad.event_statuses
+@pytest.fixture
+def requests_get_events_not_moderated(monkeypatch):
+    timepad_response_event = dict(
+        moderation_status="not_moderated",
+    )
+    def get(*args, **kwargs):
+        return Response(ok=True, json_items=dict(values=[timepad_response_event]))
+
+    monkeypatch.setattr(requests, "get", get)
 
 
-def test_timepad_ticket_statuses(timepad):
-    assert timepad.tickets_statuses
+def test_timepad_get_events_not_moderated(requests_get_events_not_moderated):
+    assert len(Timepad().get_events()) == 1
 
 
-def test_radario():
-    r = Radario()
+#######################################
+## timepad event_categories
+#######################################
+def test_timepad_event_catogories():
+    assert Timepad().event_categories
 
-    date_from_dt = dt.now()
-    date_to_dt = dt.now()
-    events = r.get_events(date_from_dt, date_to_dt)
 
-    assert events
+#######################################
+## timepad event_statuses
+#######################################
+def test_timepad_event_statuses():
+    assert Timepad().event_statuses
+
+
+#######################################
+## timepad tickets_statuses
+#######################################
+def test_timepad_ticket_statuses():
+    assert Timepad().tickets_statuses
