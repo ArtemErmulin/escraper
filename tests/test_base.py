@@ -5,6 +5,7 @@ import pytest
 import requests
 
 from escraper.parsers import Timepad, Radario
+import find_metro
 
 
 #######################################
@@ -133,6 +134,107 @@ def requests_get_events_not_moderated(monkeypatch):
 
 def test_timepad_get_events_not_moderated(requests_get_events_not_moderated):
     assert len(Timepad().get_events()) == 1
+
+
+#######################################
+## timepad _adress
+#######################################
+@pytest.fixture
+def requests_get_event_adress(monkeypatch):
+    timepad_response_event = dict(
+        moderation_status="moderated",
+        location=dict(city="test", address="test_address"),
+    )
+    def get(*args, **kwargs):
+        return Response(ok=True, json_items=timepad_response_event)
+
+    def get_subway(*args, **kwargs):
+        return "test subway"
+
+    monkeypatch.setattr(requests, "get", get)
+    monkeypatch.setattr(find_metro.metro.get_subway_name, "get_subway", get_subway)
+
+def test_timepad_adress(requests_get_event_adress):
+    tags = ("adress",)
+    event = Timepad().get_event(event_id=12345, tags=tags)
+
+    assert event.adress == "test_address, м.test subway"
+
+
+@pytest.fixture
+def requests_get_event_adress_city1(monkeypatch):
+    timepad_response_event = dict(
+        moderation_status="moderated",
+        location=dict(city="Санкт-Петербург"),
+    )
+    def get(*args, **kwargs):
+        return Response(ok=True, json_items=timepad_response_event)
+
+    monkeypatch.setattr(requests, "get", get)
+
+
+def test_timepad_adress_city1(requests_get_event_adress_city1):
+    tags = ("adress",)
+    event = Timepad().get_event(event_id=12345, tags=tags)
+
+    assert event.adress == "Санкт-Петербург"
+
+
+@pytest.fixture
+def requests_get_event_adress_city2(monkeypatch):
+    timepad_response_event = dict(
+        moderation_status="moderated",
+        location=dict(city="Без города"),
+    )
+    def get(*args, **kwargs):
+        return Response(ok=True, json_items=timepad_response_event)
+
+    monkeypatch.setattr(requests, "get", get)
+
+
+def test_timepad_adress_city2(requests_get_event_adress_city2):
+    tags = ("adress",)
+    event = Timepad().get_event(event_id=12345, tags=tags)
+
+    assert event.adress == "Онлайн"
+
+
+@pytest.fixture
+def requests_get_event_adress_city3(monkeypatch):
+    timepad_response_event = dict(
+        moderation_status="moderated",
+        location=dict(city="test", coordinates=[1, 1]),
+    )
+    def get(*args, **kwargs):
+        return Response(ok=True, json_items=timepad_response_event)
+
+    monkeypatch.setattr(requests, "get", get)
+
+
+def test_timepad_adress_city3(requests_get_event_adress_city3):
+    tags = ("adress",)
+    event = Timepad().get_event(event_id=12345, tags=tags)
+
+    assert event.adress == "1, 1"
+
+
+@pytest.fixture
+def requests_get_event_adress_city4(monkeypatch):
+    timepad_response_event = dict(
+        moderation_status="moderated",
+        location=dict(city="test"),
+    )
+    def get(*args, **kwargs):
+        return Response(ok=True, json_items=timepad_response_event)
+
+    monkeypatch.setattr(requests, "get", get)
+
+
+def test_timepad_adress_city4(requests_get_event_adress_city4):
+    tags = ("adress",)
+
+    with pytest.raises(TypeError):
+        Timepad().get_event(event_id=12345, tags=tags)
 
 
 #######################################
