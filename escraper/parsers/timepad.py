@@ -3,8 +3,9 @@ import os
 import itertools
 import re
 import warnings
+from pathlib import Path
 
-from find_metro.metro import get_subway_name
+from find_metro.metro import get_subway_name as Subway
 
 from .base import BaseParser, ALL_EVENT_TAGS
 from .utils import STRPTIME
@@ -53,22 +54,14 @@ class Timepad(BaseParser):
     def __init__(self, token=None):
         if token is None:
             if "TIMEPAD_TOKEN" in os.environ:
-                self._token = os.environ.get("TIMEPAD_TOKEN")
-
-            elif "misk" in os.listdir(os.path.dirname(__file__)):
-                path = os.path.join(os.path.dirname(__file__), "misk/timepad_token")
-                with open(path) as f:
-                    self._token = f.readline()
+                token = os.environ.get("TIMEPAD_TOKEN")
 
             else:
-                raise ValueError("Timepad token not found.")
+                raise ValueError("Timepad token was not found.")
 
-        else:
-            self._token = token
-
+        self._token = token
         self.headers = dict(Authorization=f"Bearer {self._token}")
-
-        self.find_metro = get_subway_name(city_id = 2) # 2 - Санкт петербург
+        self.city_subway = Subway(city_id=2)  # 2 - Санкт петербург
 
     def get_event(self, event_id=None, event_url=None, tags=None):
         if event_url is not None:
@@ -90,7 +83,7 @@ class Timepad(BaseParser):
 
         return event
 
-    def get_events(self, organization=None, request_params=None, tags=None):
+    def get_events(self, request_params=None, tags=None):
         """
         Parameters:
         -----------
@@ -207,10 +200,10 @@ class Timepad(BaseParser):
                     )
 
             else:
-                address = event["location"]["address"]
-                metro_station = self.find_metro.get_subway(address)
+                address = event["location"]["address"].strip()
+                metro_station = self.city_subway.get_subway(address)
                 if metro_station is not None:
-                    address = f'{address}, м.{metro_station}'
+                    address = f"{address}, м.{metro_station}"
 
         return self.remove_html_tags(address)
 
