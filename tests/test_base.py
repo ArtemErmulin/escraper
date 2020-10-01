@@ -238,6 +238,112 @@ def test_timepad_adress_city4(requests_get_event_adress_city4):
 
 
 #######################################
+## timepad _date_to
+#######################################
+@pytest.fixture
+def requests_get_event_date_to(monkeypatch):
+    timepad_response_event = dict(
+        moderation_status="moderated",
+        ends_at="1900-01-01T00:00:00+0000",
+    )
+    def get(*args, **kwargs):
+        return Response(ok=True, json_items=timepad_response_event)
+
+    monkeypatch.setattr(requests, "get", get)
+
+
+def test_timepad_date_to(requests_get_event_date_to):
+    tags = ("date_to",)
+    event = Timepad().get_event(event_id=12345, tags=tags)
+
+    assert isinstance(event.date_to, datetime)
+
+
+#######################################
+## timepad _post_text
+#######################################
+@pytest.mark.parametrize(
+    "description",
+    [
+        dict(description_short="test"),
+        dict(description_html="test"),
+    ],
+    ids=[
+        "description_short",
+        "sescription_html",
+    ]
+)
+def test_timepad_post_text(monkeypatch, description):
+    timepad_response_event = dict(
+        moderation_status="moderated",
+        **description,
+    )
+    def get(*args, **kwargs):
+        return Response(ok=True, json_items=timepad_response_event)
+
+    monkeypatch.setattr(requests, "get", get)
+
+    tags = ("post_text",)
+    event = Timepad().get_event(event_id=12345, tags=tags)
+
+    assert event.post_text == "test"
+
+
+#######################################
+## timepad _poster_imag
+#######################################
+@pytest.fixture
+def requests_get_event_poster_imag(monkeypatch):
+    timepad_response_event = dict(
+        moderation_status="moderated",
+        poster_image=dict(uploadcare_url="12test_image"),
+    )
+    def get(*args, **kwargs):
+        return Response(ok=True, json_items=timepad_response_event)
+
+    monkeypatch.setattr(requests, "get", get)
+
+
+def test_timepad_poster_imag(requests_get_event_poster_imag):
+    tags = ("poster_imag",)
+    event = Timepad().get_event(event_id=12345, tags=tags)
+
+    assert event.poster_imag == "test_image"
+
+
+#######################################
+## timepad _price
+#######################################
+@pytest.mark.parametrize(
+    "ticket_type, answ, is_registration_open",
+    [
+        (dict(price=0, status="ok"), "Бесплатно", True),
+        (dict(price=2, status="ok"), "2₽", True,),
+        (dict(price=0, status=""), "Билетов нет", False,),
+    ],
+    ids=["free", "price", "closed_registration"]
+)
+def test_timepad_price(monkeypatch, ticket_type, answ, is_registration_open):
+    timepad_response_event = dict(
+        moderation_status="moderated",
+        registration_data=dict(
+            price_min=2,
+            price_max=2,
+        ),
+        ticket_types=[ticket_type],
+    )
+    timepad_response_event["registration_data"]["is_registration_open"] = is_registration_open
+    def get(*args, **kwargs):
+        return Response(ok=True, json_items=timepad_response_event)
+
+    monkeypatch.setattr(requests, "get", get)
+    tags = ("price",)
+    event = Timepad().get_event(event_id=12345, tags=tags)
+
+    assert event.price == answ
+
+
+#######################################
 ## timepad event_categories
 #######################################
 def test_timepad_event_catogories():
