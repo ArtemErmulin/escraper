@@ -43,13 +43,12 @@ class Radario(BaseParser):
     events_api = "https://radario.ru/events/"
     parser_prefix = "RADARIO-"
 
-    def __init__(self):
-        pass
-
     def get_event(self, *args, **kwargs):
         """Currently not implemented"""
 
-    def get_events(self, date_from, date_to, *, category=None, request_params=None, tags=None):
+    def get_events(
+        self, date_from, date_to, *, category=None, request_params=None, tags=None
+    ):
         """
         Parameters:
         -----------
@@ -106,12 +105,14 @@ class Radario(BaseParser):
                     list_event_from_soup = list()
 
                 for event_card in list_event_from_soup:
-                    event_id = event_card.find(
-                        "a", {"class": "event-card__title"}
-                    )["href"].split("/")[-1]
+                    event_id = event_card.find("a", {"class": "event-card__title"})[
+                        "href"
+                    ].split("/")[-1]
                     url = self.events_api + event_id
 
-                    event_soup = BeautifulSoup(self._request_get(url).text, "html.parser")
+                    event_soup = BeautifulSoup(
+                        self._request_get(url).text, "html.parser"
+                    )
                     events.append(self.parse(event_soup, tags=tags))
 
             else:
@@ -131,10 +132,7 @@ class Radario(BaseParser):
             "span", {"class": "text-secondary mt-2"}
         ).text.strip()
 
-        full_adress = (
-            full_adress
-            .replace(", Центральный район", "")
-        )
+        full_adress = full_adress.replace(", Центральный район", "")
 
         # remove zip code
         full_adress = re.sub(r" \d+ ", " ", full_adress)
@@ -162,9 +160,11 @@ class Radario(BaseParser):
         """
         Parse from html page string
         """
-        strfdatetime = event_soup.find(
-            "span", {"class": "event-page__date mt-2"}
-        ).text.strip().replace("\n", "")
+        strfdatetime = (
+            event_soup.find("span", {"class": "event-page__date mt-2"})
+            .text.strip()
+            .replace("\n", "")
+        )
 
         day_from = None
         month_from = None
@@ -180,9 +180,8 @@ class Radario(BaseParser):
         # - "dd month, HH:MM-HH:MM"
         # - "dd month, HH:MM"
         # - "dd-dd month"
-        if (
-            not re.match(r"^\d\d \w+,", strfdatetime)
-            and not re.match(r"^\d\d-\d\d \w+$", strfdatetime)
+        if not re.match(r"^\d\d \w+,", strfdatetime) and not re.match(
+            r"^\d\d-\d\d \w+$", strfdatetime
         ):
             raise ValueError(
                 f"Unknown radario from-to datetime string: {strfdatetime!r}.\n"
@@ -256,30 +255,29 @@ class Radario(BaseParser):
         return self._date_to_
 
     def _date_from_to(self, event_soup):
-        return event_soup.find(
-            "span", {"class": "event-page__date mt-2"}
-        ).text.strip()
+        return event_soup.find("span", {"class": "event-page__date mt-2"}).text.strip()
 
     def _id(self, event_soup):
         meta_url = event_soup.find("meta", property="og:url")["content"]
-        return self.parser_prefix + meta_url[meta_url.rfind("/")+1:]
+        return self.parser_prefix + meta_url[meta_url.rfind("/") + 1 :]
 
     def _place_name(self, event_soup):
-        return (
-            event_soup.find("span", {"class": "text-secondary mt-3"})
-            .text.strip()
-            )
+        return event_soup.find("span", {"class": "text-secondary mt-3"}).text.strip()
 
     def _post_text(self, event_soup):
         post_text = self.remove_html_tags(
-            event_soup.find("meta", property="og:description")["content"]
-            .replace("<br/>", "\n")
+            event_soup.find("meta", property="og:description")["content"].replace(
+                "<br/>", "\n"
+            )
         )
         return self.prepare_post_text(post_text)
 
     def _poster_imag(self, event_soup):
         event_card_image = event_soup.find("img", {"class": "event-page__image"})
-        if event_card_image is not None and "DefaultEventImage" not in event_card_image["src"]:
+        if (
+            event_card_image is not None
+            and "DefaultEventImage" not in event_card_image["src"]
+        ):
             return event_card_image["src"]
 
     def _price(self, event_soup):

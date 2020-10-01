@@ -96,6 +96,7 @@ def requests_get_event_not_moderated(monkeypatch):
     timepad_response_event = dict(
         moderation_status="not_moderated",
     )
+
     def get(*args, **kwargs):
         return Response(ok=True, json_items=timepad_response_event)
 
@@ -126,6 +127,7 @@ def requests_get_events_not_moderated(monkeypatch):
     timepad_response_event = dict(
         moderation_status="not_moderated",
     )
+
     def get(*args, **kwargs):
         return Response(ok=True, json_items=dict(values=[timepad_response_event]))
 
@@ -145,6 +147,7 @@ def requests_get_event_adress(monkeypatch):
         moderation_status="moderated",
         location=dict(city="test", address="test_address"),
     )
+
     def get(*args, **kwargs):
         return Response(ok=True, json_items=timepad_response_event)
 
@@ -153,6 +156,7 @@ def requests_get_event_adress(monkeypatch):
 
     monkeypatch.setattr(requests, "get", get)
     monkeypatch.setattr(find_metro.metro.get_subway_name, "get_subway", get_subway)
+
 
 def test_timepad_adress(requests_get_event_adress):
     tags = ("adress",)
@@ -167,6 +171,7 @@ def requests_get_event_adress_city1(monkeypatch):
         moderation_status="moderated",
         location=dict(city="Санкт-Петербург"),
     )
+
     def get(*args, **kwargs):
         return Response(ok=True, json_items=timepad_response_event)
 
@@ -186,6 +191,7 @@ def requests_get_event_adress_city2(monkeypatch):
         moderation_status="moderated",
         location=dict(city="Без города"),
     )
+
     def get(*args, **kwargs):
         return Response(ok=True, json_items=timepad_response_event)
 
@@ -205,6 +211,7 @@ def requests_get_event_adress_city3(monkeypatch):
         moderation_status="moderated",
         location=dict(city="test", coordinates=[1, 1]),
     )
+
     def get(*args, **kwargs):
         return Response(ok=True, json_items=timepad_response_event)
 
@@ -224,6 +231,7 @@ def requests_get_event_adress_city4(monkeypatch):
         moderation_status="moderated",
         location=dict(city="test"),
     )
+
     def get(*args, **kwargs):
         return Response(ok=True, json_items=timepad_response_event)
 
@@ -246,6 +254,7 @@ def requests_get_event_date_to(monkeypatch):
         moderation_status="moderated",
         ends_at="1900-01-01T00:00:00+0000",
     )
+
     def get(*args, **kwargs):
         return Response(ok=True, json_items=timepad_response_event)
 
@@ -271,13 +280,14 @@ def test_timepad_date_to(requests_get_event_date_to):
     ids=[
         "description_short",
         "sescription_html",
-    ]
+    ],
 )
 def test_timepad_post_text(monkeypatch, description):
     timepad_response_event = dict(
         moderation_status="moderated",
         **description,
     )
+
     def get(*args, **kwargs):
         return Response(ok=True, json_items=timepad_response_event)
 
@@ -298,6 +308,7 @@ def requests_get_event_poster_imag(monkeypatch):
         moderation_status="moderated",
         poster_image=dict(uploadcare_url="12test_image"),
     )
+
     def get(*args, **kwargs):
         return Response(ok=True, json_items=timepad_response_event)
 
@@ -318,10 +329,18 @@ def test_timepad_poster_imag(requests_get_event_poster_imag):
     "ticket_type, answ, is_registration_open",
     [
         (dict(price=0, status="ok"), "Бесплатно", True),
-        (dict(price=2, status="ok"), "2₽", True,),
-        (dict(price=0, status=""), "Билетов нет", False,),
+        (
+            dict(price=2, status="ok"),
+            "2₽",
+            True,
+        ),
+        (
+            dict(price=0, status=""),
+            "Билетов нет",
+            False,
+        ),
     ],
-    ids=["free", "price", "closed_registration"]
+    ids=["free", "price", "closed_registration"],
 )
 def test_timepad_price(monkeypatch, ticket_type, answ, is_registration_open):
     timepad_response_event = dict(
@@ -332,7 +351,10 @@ def test_timepad_price(monkeypatch, ticket_type, answ, is_registration_open):
         ),
         ticket_types=[ticket_type],
     )
-    timepad_response_event["registration_data"]["is_registration_open"] = is_registration_open
+    timepad_response_event["registration_data"][
+        "is_registration_open"
+    ] = is_registration_open
+
     def get(*args, **kwargs):
         return Response(ok=True, json_items=timepad_response_event)
 

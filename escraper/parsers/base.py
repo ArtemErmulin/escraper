@@ -85,9 +85,7 @@ class BaseParser(ABC):
 
     def parse(self, event_data, tags=None):
         if tags is None:
-            raise ValueError(
-                "'tags' for event required (see escraper.ALL_EVENT_TAGS)."
-            )
+            raise ValueError("'tags' for event required (see escraper.ALL_EVENT_TAGS).")
 
         data = dict()
         for tag in tags:
