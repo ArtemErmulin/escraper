@@ -4,8 +4,10 @@ from datetime import datetime
 import pytest
 import requests
 
-from escraper.parsers import Timepad, Radario
 import find_metro
+
+from escraper.parsers import Timepad
+from escraper.testing import Response
 
 
 #######################################
@@ -31,16 +33,6 @@ def test_timepad_token_in_args():
 def test_timepad_token_in_environ():
     assert "TIMEPAD_TOKEN" in os.environ
     Timepad()
-
-
-class Response:
-    def __init__(self, content=None, ok=None, json_items=None):
-        self.content = content
-        self.ok = ok
-        self.json_items = json_items
-
-    def json(self):
-        return dict(**self.json_items)
 
 
 #######################################

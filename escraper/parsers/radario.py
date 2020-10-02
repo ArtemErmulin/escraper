@@ -39,9 +39,13 @@ AVAILABLE_CATEGORIES = [
 
 class Radario(BaseParser):
     name = "radario"
-    url = "https://spb.radario.ru/"
-    events_api = "https://radario.ru/events/"
+    BASE_URL = "https://spb.radario.ru/"
+    BASE_EVENTS_API = "https://radario.ru/events/"
     parser_prefix = "RADARIO-"
+
+    def __init__(self):
+        self.url = self.BASE_URL
+        self.events_api = self.BASE_EVENTS_API
 
     def get_event(self, *args, **kwargs):
         """Currently not implemented"""
@@ -105,9 +109,10 @@ class Radario(BaseParser):
                     list_event_from_soup = list()
 
                 for event_card in list_event_from_soup:
-                    event_id = event_card.find("a", {"class": "event-card__title"})[
-                        "href"
-                    ].split("/")[-1]
+                    event_id = event_card.find(
+                        "a", {"class": "event-card__title"}
+                    )["href"].split("/")[-1]
+
                     url = self.events_api + event_id
 
                     event_soup = BeautifulSoup(
