@@ -7,7 +7,7 @@
 [![CodeFactor](https://www.codefactor.io/repository/github/artemermulin/escraper/badge/master)](https://www.codefactor.io/repository/github/artemermulin/escraper/overview/master)
 [![Build Status](https://travis-ci.com/ArtemErmulin/escraper.svg?branch=master)](https://travis-ci.com/ArtemErmulin/escraper)
 [![codecov](https://codecov.io/gh/ArtemErmulin/escraper/branch/master/graph/badge.svg)](https://codecov.io/gh/ArtemErmulin/escraper)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
 </div>
 
