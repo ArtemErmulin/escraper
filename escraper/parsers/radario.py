@@ -49,6 +49,7 @@ class Radario(BaseParser):
 
     def get_event(self, *args, **kwargs):
         """Currently not implemented"""
+        raise NotImplementedError("Currently not implemented.")
 
     def get_events(
         self, date_from, date_to, *, category=None, request_params=None, tags=None
@@ -121,7 +122,7 @@ class Radario(BaseParser):
                     events.append(self.parse(event_soup, tags=tags))
 
             else:
-                warnings.warn(f"Category {cat!r} is not exist")
+                warnings.warn(f"Category {cat!r} is not exist", UserWarning)
 
         return events
 

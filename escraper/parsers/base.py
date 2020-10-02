@@ -134,10 +134,10 @@ class BaseParser(ABC):
 
                     if attempts_count == self.MAX_NUMBER_CONNECTION_ATTEMPTS:
                         response = None
-                        warnings.warn(warning_msg + "\nBreak (event counts 0)")
+                        warnings.warn(warning_msg + "\nBreak (event counts 0)", UserWarning)
                         break
 
-                    warnings.warn(warning_msg + "\nRetry")
+                    warnings.warn(warning_msg + "\nRetry", UserWarning)
                     attempts_count += 1
 
                 else:
