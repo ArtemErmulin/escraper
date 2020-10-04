@@ -85,9 +85,7 @@ class BaseParser(ABC):
 
     def parse(self, event_data, tags=None):
         if tags is None:
-            raise ValueError(
-                "'tags' for event required (see escraper.ALL_EVENT_TAGS)."
-            )
+            raise ValueError("'tags' for event required (see escraper.ALL_EVENT_TAGS).")
 
         data = dict()
         for tag in tags:
@@ -136,10 +134,10 @@ class BaseParser(ABC):
 
                     if attempts_count == self.MAX_NUMBER_CONNECTION_ATTEMPTS:
                         response = None
-                        warnings.warn(warning_msg + "\nBreak (event counts 0)")
+                        warnings.warn(warning_msg + "\nBreak (event counts 0)", UserWarning)
                         break
 
-                    warnings.warn(warning_msg + "\nRetry")
+                    warnings.warn(warning_msg + "\nRetry", UserWarning)
                     attempts_count += 1
 
                 else:

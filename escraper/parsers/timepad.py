@@ -2,7 +2,6 @@ from datetime import datetime
 import os
 import itertools
 import re
-import warnings
 from pathlib import Path
 
 from find_metro.metro import get_subway_name as Subway
