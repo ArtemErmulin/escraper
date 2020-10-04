@@ -35,7 +35,11 @@ def requests_get_events(monkeypatch):
 
 
 def test_radario_get_events(requests_get_events):
-    [event] = Radario().get_events(date_from=datetime.now(), date_to=datetime.now())
+    events = Radario().get_events(date_from=datetime.now(), date_to=datetime.now())
+
+    assert len(events) == 1
+
+    event = events[0]
 
     assert event.adress == "test adress"
     assert event.category == "test category"
@@ -103,7 +107,11 @@ def requests_get_adress_online(monkeypatch):
 
 
 def test_radario_adress_online(requests_get_adress_online):
-    [event] = Radario().get_events(date_from="", date_to="", tags=("adress",))
+    events = Radario().get_events(date_from="", date_to="", tags=("adress",))
+
+    assert len(events) == 1
+
+    event = events[0]
     assert event.adress == "Онлайн"
 
 
@@ -121,7 +129,11 @@ def requests_get_adress_saint_petersburg(monkeypatch):
 
 
 def test_radario_adress_saint_petersburg(requests_get_adress_saint_petersburg):
-    [event] = Radario().get_events(date_from="", date_to="", tags=("adress",))
+    events = Radario().get_events(date_from="", date_to="", tags=("adress",))
+
+    assert len(events) == 1
+
+    event = events[0]
     assert event.adress == "Test avenue"
 
 
@@ -139,7 +151,11 @@ def requests_get_adress_without_cityname(monkeypatch):
 
 
 def test_radario_adress_without_cityname(requests_get_adress_without_cityname):
-    [event] = Radario().get_events(date_from="", date_to="", tags=("adress",))
+    events = Radario().get_events(date_from="", date_to="", tags=("adress",))
+
+    assert len(events) == 1
+
+    event = events[0]
     assert event.adress == "Test avenue, 111"
 
 
@@ -167,6 +183,9 @@ def test_radario_date_from_to(monkeypatch, test_file, date_from, date_to):
     monkeypatch.setattr(Radario, "BASE_URL", str(TESTDATA / test_file))
     monkeypatch.setattr(Radario, "BASE_EVENTS_API", str(TESTDATA) + "/")
 
-    [event] = Radario().get_events(date_from="", date_to="", tags=("date_from", "date_to"))
+    events = Radario().get_events(date_from="", date_to="", tags=("date_from", "date_to"))
 
+    assert len(events) == 1
+
+    event = events[0]
     assert event.date_from == date_from and event.date_to == date_to
