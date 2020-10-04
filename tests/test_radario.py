@@ -35,7 +35,20 @@ def requests_get_events(monkeypatch):
 
 
 def test_radario_get_events(requests_get_events):
-    Radario().get_events(date_from=datetime.now(), date_to=datetime.now())
+    [event] = Radario().get_events(date_from=datetime.now(), date_to=datetime.now())
+
+    assert event.adress == "test adress"
+    assert event.category == "test category"
+    assert event.date_from == datetime.now().replace(month=1, day=1, hour=0, **ZEROS)
+    assert event.date_to is None
+    assert event.date_from_to == "01 января, 00:00"
+    assert event.id == Radario.parser_prefix + "test id"
+    assert event.place_name == "test place_name"
+    assert event.post_text == "test post_text"
+    assert event.poster_imag == "test_image.png"
+    assert event.price == "test price"
+    assert event.title[2:] == "test title"  # without emoji
+    assert event.is_registration_open is True
 
 
 @pytest.fixture
