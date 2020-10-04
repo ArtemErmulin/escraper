@@ -142,6 +142,7 @@ class Radario(BaseParser):
 
         # remove zip code
         full_adress = re.sub(r" \d+ ", " ", full_adress)
+        full_adress = re.sub(r" \d+, ", " ", full_adress)
         full_adress = re.sub(r"^\d+, ", "", full_adress)
 
         if "онлайн" in full_adress.lower():
@@ -160,7 +161,7 @@ class Radario(BaseParser):
         return adress
 
     def _category(self, event_soup):
-        return event_soup.find("a", {"class": "event-page__tag"})["href"][1:]
+        return event_soup.find("a", {"class": "event-page__tag"}).text.strip()
 
     def date_from_to(self, event_soup):
         """
