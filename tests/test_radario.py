@@ -9,6 +9,7 @@ from escraper.testing import Response
 
 
 TESTDATA = Path(__file__).parent / "test_data" / "test_radario"
+ZEROS = dict(minute=00, second=00, microsecond=00)
 #######################################
 ## radario get_event
 #######################################
@@ -72,7 +73,6 @@ def test_radario_get_events_date_for_request(requests_get_empty):
         Radario().get_events(date_from="", date_to="")
 
 
-
 #######################################
 ## radario _adress
 #######################################
@@ -128,3 +128,32 @@ def requests_get_adress_without_cityname(monkeypatch):
 def test_radario_adress_without_cityname(requests_get_adress_without_cityname):
     [event] = Radario().get_events(date_from="", date_to="", tags=("adress",))
     assert event.adress == "Test avenue, 111"
+
+
+@pytest.mark.parametrize(
+    "test_file, date_from, date_to",
+    [
+        ("event_card_5", datetime.now().replace(month=1, day=1, hour=00, **ZEROS), datetime.now().replace(month=1, day=1, hour=1, **ZEROS)),
+        ("event_card_6", datetime.now().replace(month=1, day=1, hour=00, **ZEROS), None),
+        ("event_card_7", datetime.now().replace(month=1, day=1, hour=00, **ZEROS), datetime.now().replace(month=1, day=2, hour=00, **ZEROS)),
+    ],
+    ids=[
+        "dd month, HH:MM-HH:MM",
+        "dd month, HH:MM",
+        "dd-dd month",
+    ],
+)
+def test_radario_date_from_to(monkeypatch, test_file, date_from, date_to):
+    def get(path, **kwargs):
+        with open(path + ".html") as file:
+            text = file.read()
+
+        return Response(ok=True, text=text)
+
+    monkeypatch.setattr(requests, "get", get)
+    monkeypatch.setattr(Radario, "BASE_URL", str(TESTDATA / test_file))
+    monkeypatch.setattr(Radario, "BASE_EVENTS_API", str(TESTDATA) + "/")
+
+    [event] = Radario().get_events(date_from="", date_to="", tags=("date_from", "date_to"))
+
+    assert event.date_from == date_from and event.date_to == date_to

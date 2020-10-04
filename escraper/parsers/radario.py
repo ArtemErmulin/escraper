@@ -194,7 +194,7 @@ class Radario(BaseParser):
                 f"Event url: {self._url(event_soup)}"
             )
 
-        # format "day month, hour:minute-hour:minute"
+        # dd month+
         if re.match(r"^\d\d \w+,", strfdatetime):
             day_from = int(strfdatetime[:2])
             month_from = int(monthes[strfdatetime[3:].split(",")[0]])
@@ -202,14 +202,14 @@ class Radario(BaseParser):
             day_to = day_from
             month_to = month_from
 
-            # one day event in format 'dd month, HH:MM'
+            # dd month, HH:MM
             if re.match(r"\d{2} \w+, \d{2}:\d{2}$", strfdatetime):
                 strtime_from = strfdatetime[-5:]
 
                 hour_from = int(strtime_from.split(":")[0])
                 minute_from = int(strtime_from.split(":")[1])
 
-            # one day, two hour points
+            # dd month, HH:MM-HH:MM
             elif re.match(r"\d{2} \w+,.+\d{2}:\d{2}-\d{2}:\d{2}", strfdatetime):
                 strtime_from = strfdatetime[-11:-6]
                 hour_from = int(strtime_from.split(":")[0])
@@ -219,6 +219,7 @@ class Radario(BaseParser):
                 hour_to = int(strtime_to.split(":")[0])
                 minute_to = int(strtime_to.split(":")[1])
 
+        # dd-dd month
         elif re.match(r"^\d\d-\d\d \w+$", strfdatetime):
             day_from = int(strfdatetime[:2])
             month_from = int(monthes[strfdatetime[6:]])
