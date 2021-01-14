@@ -30,6 +30,8 @@ jobs:
         pip install -r requirements.txt
         pip install .
     - name: Test with pytest
+      env:
+        TIMEPAD_TOKEN: ${{ secrets.TIMEPAD_TOKEN }}
       run: |
         pytest --verbose --cov-report term --cov=escraper/
     - name: Generate coverage report
