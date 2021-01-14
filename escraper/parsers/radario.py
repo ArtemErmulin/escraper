@@ -41,7 +41,7 @@ class Radario(BaseParser):
     name = "radario"
     BASE_URL = "https://spb.radario.ru/"
     BASE_EVENTS_API = "https://radario.ru/events/"
-    DATETIME_STR = "%Y-%m-%d"
+    DATETIME_STRF = "%Y-%m-%d"
     parser_prefix = "RADARIO-"
 
     def __init__(self):
@@ -85,8 +85,8 @@ class Radario(BaseParser):
         request_params = {
             **(request_params or dict()),
             **{
-                "from": (date_from or datetime.now()).strftime(self.DATETIME_STR),
-                "to": (date_to or datetime.now()).strftime(self.DATETIME_STR),
+                "from": (date_from or datetime.now()).strftime(self.DATETIME_STRF),
+                "to": (date_to or datetime.now()).strftime(self.DATETIME_STRF),
             },
         }
 
@@ -156,7 +156,7 @@ class Radario(BaseParser):
     def _category(self, event_soup):
         return event_soup.find("a", {"class": "event-page__tag"}).text.strip()
 
-    def date_from_to(self, event_soup):
+    def _date_from_to(self, event_soup):
         """
         Parse from html page string
         """
@@ -249,7 +249,7 @@ class Radario(BaseParser):
         return daytime_from, daytime_to
 
     def _date_from(self, event_soup):
-        self._date_from_, self._date_to_ = self.date_from_to(event_soup)
+        self._date_from_, self._date_to_ = self._date_from_to(event_soup)
         return self._date_from_
 
     def _date_to(self, event_soup):
