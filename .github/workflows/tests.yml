@@ -5,11 +5,7 @@ name: Run tests
 
 on:
   push:
-    paths:
-      - escraper/**
-      - tests/**
-      - requirements.txt
-      - setup.py
+    branches: '*'
 
 jobs:
   setup:
