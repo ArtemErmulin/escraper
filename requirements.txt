@@ -1,3 +1,3 @@
 beautifulsoup4==4.9.1 # pyup: ignore
-requests==2.25.1
+requests<=2.25.1, >=2.24.0 # pyup: ignore
 find_metro@git+https://github.com/magusch/Address_to_subway_name.git@master
