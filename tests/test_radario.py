@@ -10,6 +10,12 @@ from escraper.testing import Response
 
 TESTDATA = Path(__file__).parent / "test_data" / "test_radario"
 ZEROS = dict(minute=00, second=00, microsecond=00)
+
+
+def get_radario_date():
+    return datetime.now().strftime(Radario.DATETIME_STRF)
+
+
 #######################################
 ## radario get_event
 #######################################
@@ -35,11 +41,12 @@ def requests_get_events(monkeypatch):
 
 
 def test_radario_get_events(requests_get_events):
-    events = Radario().get_events(date_from=datetime.now(), date_to=datetime.now())
+    params = {"from": get_radario_date(), "to": get_radario_date()}
+    events = Radario().get_events(request_params=params)
 
     assert len(events) == 1
 
-    event = events[0]
+    [event] = events
 
     assert event.adress == "test adress"
     assert event.category == "test category"
@@ -64,30 +71,32 @@ def requests_get_empty(monkeypatch):
 
 
 def test_radario_get_events_empty_online(requests_get_empty):
+    params = {
+        "from": get_radario_date(),
+        "to": get_radario_date(),
+        "online": True,
+    }
     radario = Radario()
     with pytest.warns(UserWarning):
-        events = radario.get_events(
-            date_from=datetime.now(),
-            date_to=datetime.now(),
-            request_params=dict(online=True),
-        )
+        events = radario.get_events(request_params=params)
 
     assert radario.url == "https://online.radario.ru/"
     assert len(events) == 0
 
 
 def test_radario_get_events_incorrect_category():
+    params = {
+        "from": get_radario_date(),
+        "to": get_radario_date(),
+        "category": ["Invalid_category"],
+    }
     with pytest.warns(UserWarning, match="Category 'Invalid_category' is not exist"):
-        events = Radario().get_events(
-            date_from=datetime.now(),
-            date_to=datetime.now(),
-            category=["Invalid_category"],
-        )
+        events = Radario().get_events(request_params=params)
 
 
 def test_radario_get_events_date_for_request(requests_get_empty):
     with pytest.warns(UserWarning):
-        Radario().get_events(date_from="", date_to="")
+        Radario().get_events(request_params={"from": "", "to": ""})
 
 
 #######################################
@@ -107,7 +116,7 @@ def requests_get_adress_online(monkeypatch):
 
 
 def test_radario_adress_online(requests_get_adress_online):
-    events = Radario().get_events(date_from="", date_to="", tags=("adress",))
+    events = Radario().get_events(tags=["adress"])
 
     assert len(events) == 1
 
@@ -129,7 +138,7 @@ def requests_get_adress_saint_petersburg(monkeypatch):
 
 
 def test_radario_adress_saint_petersburg(requests_get_adress_saint_petersburg):
-    events = Radario().get_events(date_from="", date_to="", tags=("adress",))
+    events = Radario().get_events(tags=["adress"])
 
     assert len(events) == 1
 
@@ -151,7 +160,7 @@ def requests_get_adress_without_cityname(monkeypatch):
 
 
 def test_radario_adress_without_cityname(requests_get_adress_without_cityname):
-    events = Radario().get_events(date_from="", date_to="", tags=("adress",))
+    events = Radario().get_events(tags=["adress"])
 
     assert len(events) == 1
 
@@ -183,7 +192,7 @@ def test_radario_date_from_to(monkeypatch, test_file, date_from, date_to):
     monkeypatch.setattr(Radario, "BASE_URL", str(TESTDATA / test_file))
     monkeypatch.setattr(Radario, "BASE_EVENTS_API", str(TESTDATA) + "/")
 
-    events = Radario().get_events(date_from="", date_to="", tags=("date_from", "date_to"))
+    events = Radario().get_events(tags=["date_from", "date_to"])
 
     assert len(events) == 1
 

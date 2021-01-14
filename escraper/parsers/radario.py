@@ -153,9 +153,10 @@ class Radario(BaseParser):
     def _category(self, event_soup):
         return event_soup.find("a", {"class": "event-page__tag"}).text.strip()
 
-    def _date_from_to(self, event_soup):
+    def _datetimes_from_html(self, event_soup):
         """
-        Parse from html page string
+        Parse datetimes (from and to) from html page.
+        Use only in Radario._date_from()
         """
         strfdatetime = (
             event_soup.find("span", {"class": "event-page__date mt-2"})
@@ -246,11 +247,17 @@ class Radario(BaseParser):
         return daytime_from, daytime_to
 
     def _date_from(self, event_soup):
-        self._date_from_, self._date_to_ = self._date_from_to(event_soup)
+        self._date_from_, self._date_to_ = self._datetimes_from_html(event_soup)
         return self._date_from_
 
     def _date_to(self, event_soup):
         return self._date_to_
+
+    def _date_from_to(self, event_soup):
+        """
+        Parse date from and to as string from event page.
+        """
+        return event_soup.find("span", {"class": "event-page__date mt-2"}).text.strip()
 
     def _id(self, event_soup):
         meta_url = event_soup.find("meta", property="og:url")["content"]
