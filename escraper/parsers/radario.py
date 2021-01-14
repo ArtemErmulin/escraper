@@ -52,43 +52,40 @@ class Radario(BaseParser):
         """Currently not implemented"""
         raise NotImplementedError("Currently not implemented.")
 
-    def get_events(
-        self, date_from=None, date_to=None, category=None, request_params=None, tags=None
-    ):
+    def get_events(self, request_params=None, tags=None):
         """
         Parameters:
         -----------
+        request_params : dict
+            Parameters for radario events
 
-        category : list, default None (all event categories)
-            All available event categories:
-                concert, theatre, museum, education, sport, entertainment, kids, show
+            online : bool
+                Include online events
 
-        date_from, date_to : datetime, default datetime.datetime.now()
-            Events date range.
+            category : list, default None (all categories)
+                All available event catefories:
+                    concert, theatre, museum, education,
+                    sport, entertainment, kids, show
 
-        online : bool, default False
-            Include online events.
+            date_from, date_to : str, default None (now)
+                Events date range
+
+        tags : list of tags, default all available event tags
+            Event tags (title, id, url etc.,
+            see all tags in 'escraper.ALL_EVENT_TAGS')
 
         Examples:
         ----------
-        >>> from datetime import datetime
-
-        >>> date_from = datetime.now()
-        >>> date_to = datetime.now()
-
         >>> radario = Radario()
-        >>> category = ["concert", "education", "theatre"]
-
-        # list of today events in categories "concert", "education", "theatre"
-        >>> radario.get_events(category, date_from, date_to)  # doctest: +SKIP
-        """
-        request_params = {
-            **(request_params or dict()),
-            **{
-                "from": (date_from or datetime.now()).strftime(self.DATETIME_STRF),
-                "to": (date_to or datetime.now()).strftime(self.DATETIME_STRF),
-            },
+        >>> request_params = {
+            "online": True,
+            "category": ["concert", "education", "theatre"],
+            "date_from": "2020-01-01",
+            "date_to": "2020-01-02",
         }
+        >>> radario.get_events(request_params=request_params)  # doctest: +SKIP
+        """
+        request_params = (request_params or dict())
 
         if request_params.pop("online", False):
             # convert "https://spb.radario.ru/" to "https://online.radario.ru/"
@@ -96,7 +93,7 @@ class Radario(BaseParser):
 
         events = list()
 
-        for cat in category or [""]:
+        for cat in request_params.pop("category", [""]):
             if cat in AVAILABLE_CATEGORIES + [""]:
                 url = f"{self.url}{cat}"
                 response = self._request_get(url, params=request_params)
