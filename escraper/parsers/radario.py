@@ -255,9 +255,6 @@ class Radario(BaseParser):
     def _date_to(self, event_soup):
         return self._date_to_
 
-    def _date_from_to(self, event_soup):
-        return event_soup.find("span", {"class": "event-page__date mt-2"}).text.strip()
-
     def _id(self, event_soup):
         meta_url = event_soup.find("meta", property="og:url")["content"]
         return self.parser_prefix + meta_url[meta_url.rfind("/") + 1 :]
