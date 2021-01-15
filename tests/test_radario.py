@@ -46,7 +46,7 @@ def test_radario_get_events(requests_get_events):
 
     assert len(events) == 1
 
-    [event] = events
+    event = events[0]
 
     assert event.adress == "test adress"
     assert event.category == "test category"
