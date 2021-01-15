@@ -3,9 +3,9 @@ import requests
 from datetime import datetime
 from pathlib import Path
 
-
 from escraper.parsers import Radario
-from escraper.testing import Response
+
+from .testing import Response
 
 
 TESTDATA = Path(__file__).parent / "test_data" / "test_radario"
