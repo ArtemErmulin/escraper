@@ -67,3 +67,21 @@ Get events by parameters (for more see `Timepad.get_events` docstring):
 >>> timepad.get_events(request_params=params)
 <list events data namedtuple>
 ```
+
+## Radario
+```python
+>>> from escraper import Radario
+```
+
+For using radario parser you don't need any tokens:
+```python
+>>> radario = Radario()
+```
+
+Get event from radario will raise `NotImplementedError`.
+
+Get events by parameters (for more see `Radario.get_events` docstring):
+```python
+>>> radario.get_events(request_params=params)
+<list events data namedtuple>
+```

@@ -41,6 +41,7 @@ class Radario(BaseParser):
     name = "radario"
     BASE_URL = "https://spb.radario.ru/"
     BASE_EVENTS_API = "https://radario.ru/events/"
+    DATETIME_STRF = "%Y-%m-%d"
     parser_prefix = "RADARIO-"
 
     def __init__(self):
@@ -51,44 +52,40 @@ class Radario(BaseParser):
         """Currently not implemented"""
         raise NotImplementedError("Currently not implemented.")
 
-    def get_events(
-        self, date_from, date_to, *, category=None, request_params=None, tags=None
-    ):
+    def get_events(self, request_params=None, tags=None):
         """
         Parameters:
         -----------
+        request_params : dict
+            Parameters for radario events
 
-        category : list, default None (all event categories)
-            All available event categories:
-                concert, theatre, museum, education, sport, entertainment, kids, show
+            online : bool
+                Include online events
 
-        date_from_dt, date_to_dt : datetime, default None
-            в категориях museum и theatre очень много мероприятий, так что интервал дат лучше ставить минимальный(на день)
-            в остальных категориях интервал дат 5 дней идеально
+            category : list, default None (all categories)
+                All available event catefories:
+                    concert, theatre, museum, education,
+                    sport, entertainment, kids, show
 
-        online : bool, default False
-            онлайн мероприятий мало, так что остальные параметры можно оставлять пустыми
+            date_from, date_to : str, default None (now)
+                Events date range
+
+        tags : list of tags, default all available event tags
+            Event tags (title, id, url etc.,
+            see all tags in 'escraper.ALL_EVENT_TAGS')
 
         Examples:
         ----------
-        >>> from datetime import datetime
-
-        >>> date_from_dt = datetime.now()
-        >>> date_to_dt = datetime.now()
-
-        >>> r = Radario()
-        >>> category = ["concert", "education", "theatre"]
-
-        # list of today events in categories "concert", "education", "theatre"
-        >>> e = r.get_events(category, date_from_dt, date_to_dt)  # doctest: +SKIP
+        >>> radario = Radario()
+        >>> request_params = {
+            "online": True,
+            "category": ["concert", "education", "theatre"],
+            "date_from": "2020-01-01",
+            "date_to": "2020-01-02",
+        }
+        >>> radario.get_events(request_params=request_params)  # doctest: +SKIP
         """
-        # if category is "", then get events from all categories
-        category = category or [""]
-        tags = tags or ALL_EVENT_TAGS
-        request_params = request_params or dict()
-
-        request_params["from"] = self.date_for_request(date_from)
-        request_params["to"] = self.date_for_request(date_to)
+        request_params = (request_params or dict())
 
         if request_params.pop("online", False):
             # convert "https://spb.radario.ru/" to "https://online.radario.ru/"
@@ -96,7 +93,7 @@ class Radario(BaseParser):
 
         events = list()
 
-        for cat in category:
+        for cat in request_params.pop("category", [""]):
             if cat in AVAILABLE_CATEGORIES + [""]:
                 url = f"{self.url}{cat}"
                 response = self._request_get(url, params=request_params)
@@ -119,19 +116,12 @@ class Radario(BaseParser):
                     event_soup = BeautifulSoup(
                         self._request_get(url).text, "html.parser"
                     )
-                    events.append(self.parse(event_soup, tags=tags))
+                    events.append(self.parse(event_soup, tags=tags or ALL_EVENT_TAGS))
 
             else:
                 warnings.warn(f"Category {cat!r} is not exist", UserWarning)
 
         return events
-
-    def date_for_request(self, date_req):
-        if isinstance(date_req, datetime):
-            date = f"{date_req.year}-{date_req.month:0>2d}-{date_req.day:0>2d}"
-        else:
-            date = ""
-        return date
 
     def _adress(self, event_soup):
         full_adress = event_soup.find(
@@ -163,15 +153,12 @@ class Radario(BaseParser):
     def _category(self, event_soup):
         return event_soup.find("a", {"class": "event-page__tag"}).text.strip()
 
-    def date_from_to(self, event_soup):
+    def _datetimes_from_html(self, event_soup):
         """
-        Parse from html page string
+        Parse datetimes (from and to) from html page.
+        Use only in Radario._date_from()
         """
-        strfdatetime = (
-            event_soup.find("span", {"class": "event-page__date mt-2"})
-            .text.strip()
-            .replace("\n", "")
-        )
+        strfdatetime = self._date_from_to(event_soup)
 
         day_from = None
         month_from = None
@@ -256,14 +243,23 @@ class Radario(BaseParser):
         return daytime_from, daytime_to
 
     def _date_from(self, event_soup):
-        self._date_from_, self._date_to_ = self.date_from_to(event_soup)
+        self._date_from_, self._date_to_ = self._datetimes_from_html(event_soup)
         return self._date_from_
 
     def _date_to(self, event_soup):
         return self._date_to_
 
     def _date_from_to(self, event_soup):
-        return event_soup.find("span", {"class": "event-page__date mt-2"}).text.strip()
+        """
+        Parse date from and to as string from event page.
+        """
+        return re.sub(
+            " +",
+            " ",
+            event_soup.find("span", {"class": "event-page__date mt-2"})
+            .text.strip()
+            .replace("\n", " ")
+        )
 
     def _id(self, event_soup):
         meta_url = event_soup.find("meta", property="og:url")["content"]

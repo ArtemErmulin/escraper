@@ -3,11 +3,11 @@ from datetime import datetime
 
 import pytest
 import requests
-
 import find_metro
 
 from escraper.parsers import Timepad
-from escraper.testing import Response
+
+from .testing import Response
 
 
 #######################################
