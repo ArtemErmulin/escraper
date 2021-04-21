@@ -5,6 +5,7 @@ import re
 from pathlib import Path
 
 from find_metro.metro import get_subway_name as Subway
+import pytz
 
 from .base import BaseParser, ALL_EVENT_TAGS
 from .utils import STRPTIME
@@ -34,6 +35,7 @@ class Timepad(BaseParser):
     url = "www.timepad.ru"
     events_api = "https://api.timepad.ru/v1/events"
     parser_prefix = "TIMEPAD-"
+    TIMEZONE = pytz.timezone("Europe/Moscow")
     FIELDS = (  # event fields in timepad request parameters
         "name",
         "starts_at",
@@ -213,14 +215,14 @@ class Timepad(BaseParser):
         return event["categories"][0]["name"]
 
     def _date_from(self, event):
-        dt = datetime.strptime(event["starts_at"], STRPTIME)
+        dt = datetime.strptime(event["starts_at"], STRPTIME).astimezone(self.TIMEZONE)
 
-        return dt.replace(tzinfo=None)
+        return dt
 
     def _date_to(self, event):
         if "ends_at" in event:
-            dt = datetime.strptime(event["ends_at"], STRPTIME)
-            return dt.replace(tzinfo=None)
+            dt = datetime.strptime(event["ends_at"], STRPTIME).astimezone(self.TIMEZONE)
+            return dt
         return None
 
     def _date_from_to(self, event):

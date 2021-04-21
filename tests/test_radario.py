@@ -13,7 +13,7 @@ ZEROS = dict(minute=00, second=00, microsecond=00)
 
 
 def get_radario_date():
-    return datetime.now().strftime(Radario.DATETIME_STRF)
+    return datetime.now(tz=Radario.TIMEZONE).strftime(Radario.DATETIME_STRF)
 
 
 #######################################
@@ -50,7 +50,7 @@ def test_radario_get_events(requests_get_events):
 
     assert event.adress == "test adress"
     assert event.category == "test category"
-    assert event.date_from == datetime.now().replace(month=1, day=1, hour=0, **ZEROS)
+    assert event.date_from == datetime.now(tz=Radario.TIMEZONE).replace(year=2021, month=1, day=1, hour=0, **ZEROS)
     assert event.date_to is None
     assert event.date_from_to == "01 января, 00:00"
     assert event.id == Radario.parser_prefix + "test id"
@@ -171,9 +171,9 @@ def test_radario_adress_without_cityname(requests_get_adress_without_cityname):
 @pytest.mark.parametrize(
     "test_file, date_from, date_to",
     [
-        ("event_card_5", datetime.now().replace(month=1, day=1, hour=00, **ZEROS), datetime.now().replace(month=1, day=1, hour=1, **ZEROS)),
-        ("event_card_6", datetime.now().replace(month=1, day=1, hour=00, **ZEROS), None),
-        ("event_card_7", datetime.now().replace(month=1, day=1, hour=00, **ZEROS), datetime.now().replace(month=1, day=2, hour=00, **ZEROS)),
+        ("event_card_5", datetime.now(tz=Radario.TIMEZONE).replace(month=1, day=1, hour=00, **ZEROS), datetime.now(tz=Radario.TIMEZONE).replace(month=1, day=1, hour=1, **ZEROS)),
+        ("event_card_6", datetime.now(tz=Radario.TIMEZONE).replace(month=1, day=1, hour=00, **ZEROS), None),
+        ("event_card_7", datetime.now(tz=Radario.TIMEZONE).replace(month=1, day=1, hour=00, **ZEROS), datetime.now(tz=Radario.TIMEZONE).replace(month=1, day=2, hour=00, **ZEROS)),
     ],
     ids=[
         "dd month, HH:MM-HH:MM",

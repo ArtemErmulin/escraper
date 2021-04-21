@@ -3,6 +3,7 @@ import requests
 import warnings
 from datetime import datetime
 
+import pytz
 from bs4 import BeautifulSoup
 
 from .base import BaseParser, ALL_EVENT_TAGS
@@ -43,6 +44,7 @@ class Radario(BaseParser):
     BASE_EVENTS_API = "https://radario.ru/events/"
     DATETIME_STRF = "%Y-%m-%d"
     parser_prefix = "RADARIO-"
+    TIMEZONE = pytz.timezone("Europe/Moscow")
 
     def __init__(self):
         self.url = self.BASE_URL
@@ -219,7 +221,7 @@ class Radario(BaseParser):
             hour_to = 0
             minute_to = 0
 
-        daytime_from = datetime.now().replace(
+        daytime_from = datetime.now(tz=self.TIMEZONE).replace(
             month=month_from,
             day=day_from,
             hour=hour_from,
@@ -229,7 +231,7 @@ class Radario(BaseParser):
         )
 
         if hour_to is not None and minute_to is not None:
-            daytime_to = datetime.now().replace(
+            daytime_to = datetime.now(tz=self.TIMEZONE).replace(
                 month=month_to,
                 day=day_to,
                 hour=hour_to,
