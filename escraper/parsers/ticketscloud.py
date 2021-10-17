@@ -37,7 +37,7 @@ class Ticketscloud(BaseParser):
         #response = self._request_get(event_url)
 
         event_soup = BeautifulSoup(
-            self._request_get(event_url).text, "html.parser"
+            self._request_get(event_url).text, "lxml"
         )
         # if not is_moderated(response_json):
         #     print("Event is not moderated")
@@ -47,11 +47,13 @@ class Ticketscloud(BaseParser):
 
         script_tags = event_soup.find_all('script')
         for script_tag in script_tags:
-            text = script_tag.text
+            if not script_tag.contents: continue
+            text = script_tag.contents[0]
             if re.match('tc_event', text):
                 new_text = '='.join(text.strip().split('=')[1:])[:-1]
                 # print(new_text)
                 self.tc_event = json.loads(new_text)
+                break
         event = self.parse(event_soup, tags=tags)
 
         return event
