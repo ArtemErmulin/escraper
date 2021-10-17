@@ -1,8 +1,9 @@
 import re, json
 
 import warnings
-from datetime import datetime
+from datetime import datetime, timedelta
 
+from find_metro.metro import get_subway_name as Subway
 import pytz
 from bs4 import BeautifulSoup
 
@@ -19,11 +20,12 @@ class Ticketscloud(BaseParser):
     BASE_URL = "https://ticketscloud.org/"
 
     DATETIME_STRF = "%Y-%m-%d"
-    parser_prefix = "Ticketscloud-"
+    parser_prefix = "TC-"
     TIMEZONE = pytz.timezone("Europe/Moscow")
 
     def __init__(self):
         self.url = self.BASE_URL
+        self.city_subway = Subway(city_id=2)  # 2 - Санкт петербург
         #self.events_api = self.BASE_EVENTS_API
 
 
@@ -42,6 +44,14 @@ class Ticketscloud(BaseParser):
         #     event = None
         #else:
         tags = tags or ALL_EVENT_TAGS
+
+        script_tags = event_soup.find_all('script')
+        for script_tag in script_tags:
+            text = script_tag.text
+            if re.match('tc_event', text):
+                new_text = '='.join(text.strip().split('=')[1:])[:-1]
+                # print(new_text)
+                self.tc_event = json.loads(new_text)
         event = self.parse(event_soup, tags=tags)
 
         return event
@@ -86,18 +96,22 @@ class Ticketscloud(BaseParser):
             for event_card in list_event_from_soup:
 
                 self.url = url + event_card.find('a').get('href')
+                time = datetime.strptime(
+                    event_card.find(class_='ticketscloud-event-item__time').text.replace(',', ''), "%d.%m.%Y %H:%M")
 
-                event_soup = BeautifulSoup(
-                        self._request_get(self.url).text, "html.parser"
-                    )
-                events.append(self.parse(event_soup, tags=tags or ALL_EVENT_TAGS))
+                city = event_card.find('span', class_=None).text
+                if city!='Санкт-Петербург' or time>datetime.now()+timedelta(days=10):
+                    continue
+
+                events.append(self.get_event(event_url=self.url)) #self.parse(event_soup, tags=tags or ALL_EVENT_TAGS))
 
 
         return events
 
     def _adress(self, event_soup): #+
-        full_address = re.sub('\s+', ' ', event_soup.find('article', class_='col-md-9 col-sm-12').find('span').text.strip())
-
+        #full_address = re.sub('\s+', ' ', event_soup.find('article', class_='col-md-9 col-sm-12').find('span').text.strip())
+        if not 'address' in self.tc_event['venue']: return
+        full_address = self.tc_event['venue']['address']
         if "онлайн" in full_address.lower():
             address = "Онлайн"
         else:
@@ -110,119 +124,32 @@ class Ticketscloud(BaseParser):
             else:
                 address = full_address
 
+        try:
+            metro_station = self.city_subway.get_subway(address)
+        except:
+            metro_station = None
+        if metro_station is not None:
+            address = f"{address}, м.{metro_station}"
+
         return address
 
     def _category(self, event_soup):
         return
 
-    # def _datetimes_from_html(self, event_soup):
-    #     """
-    #     Parse datetimes (from and to) from html page.
-    #     Use only in Radario._date_from()
-    #     """
-    #     strfdatetime = self._date_from_to(event_soup)
-    #
-    #     day_from = None
-    #     month_from = None
-    #     hour_from = None
-    #     minute_from = None
-    #
-    #     day_to = None
-    #     month_to = None
-    #     hour_to = None
-    #     minute_to = None
-    #
-    #     # can parse from-to datetime string formats:
-    #     # - "dd month, HH:MM-HH:MM"
-    #     # - "dd month, HH:MM"
-    #     # - "dd-dd month"
-    #     if not re.match(r"^\d\d \w+,", strfdatetime) and not re.match(
-    #         r"^\d\d-\d\d \w+$", strfdatetime
-    #     ):
-    #         raise ValueError(
-    #             f"Unknown radario from-to datetime string: {strfdatetime!r}.\n"
-    #             f"Event url: {self._url(event_soup)}"
-    #         )
-    #
-    #     # dd month+
-    #     if re.match(r"^\d\d \w+,", strfdatetime):
-    #         day_from = int(strfdatetime[:2])
-    #         month_from = int(monthes[strfdatetime[3:].split(",")[0]])
-    #
-    #         day_to = day_from
-    #         month_to = month_from
-    #
-    #         # dd month, HH:MM
-    #         if re.match(r"\d{2} \w+, \d{2}:\d{2}$", strfdatetime):
-    #             strtime_from = strfdatetime[-5:]
-    #
-    #             hour_from = int(strtime_from.split(":")[0])
-    #             minute_from = int(strtime_from.split(":")[1])
-    #
-    #         # dd month, HH:MM-HH:MM
-    #         elif re.match(r"\d{2} \w+,.+\d{2}:\d{2}-\d{2}:\d{2}", strfdatetime):
-    #             strtime_from = strfdatetime[-11:-6]
-    #             hour_from = int(strtime_from.split(":")[0])
-    #             minute_from = int(strtime_from.split(":")[1])
-    #
-    #             strtime_to = strfdatetime[-5:]
-    #             hour_to = int(strtime_to.split(":")[0])
-    #             minute_to = int(strtime_to.split(":")[1])
-    #
-    #     # dd-dd month
-    #     elif re.match(r"^\d\d-\d\d \w+$", strfdatetime):
-    #         day_from = int(strfdatetime[:2])
-    #         month_from = int(monthes[strfdatetime[6:]])
-    #         hour_from = 0
-    #         minute_from = 0
-    #
-    #         day_to = int(strfdatetime[3:5])
-    #         month_to = month_from
-    #         hour_to = 0
-    #         minute_to = 0
-    #
-    #     daytime_from = datetime.now(tz=self.TIMEZONE).replace(
-    #         month=month_from,
-    #         day=day_from,
-    #         hour=hour_from,
-    #         minute=minute_from,
-    #         second=0,
-    #         microsecond=0,
-    #     )
-    #
-    #     if hour_to is not None and minute_to is not None:
-    #         daytime_to = datetime.now(tz=self.TIMEZONE).replace(
-    #             month=month_to,
-    #             day=day_to,
-    #             hour=hour_to,
-    #             minute=minute_to,
-    #             second=0,
-    #             microsecond=0,
-    #         )
-    #     else:
-    #         daytime_to = None
-    #
-    #     return daytime_from, daytime_to
-
     def _date_from(self, event_soup):
-        return re.sub('\s+', ' ', event_soup.find('div', class_='event-info-se__address-part').find('time').text.strip())
+        return datetime.strptime(self.tc_event['lifetime'].split('\n')[1].strip().split('DATE-TIME:')[-1], "%Y%m%dT%H%M%SZ").astimezone(self.TIMEZONE)+timedelta(hours=3)
 
     def _date_to(self, event_soup): #TODO: take from <script> tc_event
-        return re.sub('\s+', ' ', event_soup.find('div', class_='event-info-se__address-part').find('time').text.strip())
+        return datetime.strptime(self.tc_event['lifetime'].split('\n')[2].strip().split('DATE-TIME:')[-1], "%Y%m%dT%H%M%SZ").astimezone(self.TIMEZONE)+timedelta(hours=3)
 
     def _date_from_to(self, event_soup): #+/-
         """
         Parse date from and to as string from event page.
         """
-        return self._date_from
+        return re.sub('\s+', ' ', event_soup.find('div', class_='event-info-se__address-part').find('time').text.strip())
 
     def _id(self, event_soup):
-        script_num = 2
-        tc_event = event_soup.find('body').find('script')[2].content
-        print(tc_event)
-
-
-        return 1
+        return self.parser_prefix + self.tc_event['id']
 
     def _place_name(self, event_soup): #+
         address_name = re.sub('\s+', ' ',
@@ -243,18 +170,10 @@ class Ticketscloud(BaseParser):
         return self.prepare_post_text(post_text)
 
     def _poster_imag(self, event_soup): #TODO: check if exists and better regular
-        image_dict = re.findall(r'"logo":\{(.*?)\}', str(event_soup.contents))
-        if not image_dict:
-            image_dict = re.findall(r'"cover_original":\{(.*?)\}', str(event_soup.contents))
-        if not image_dict: return
-        image_url = json.loads('{'+image_dict[0]+'}')['url']
-        # event_card_image = event_soup.find("img", {"class": "event-page__image"})
-        # if (
-        #     event_card_image is not None
-        #     and "DefaultEventImage" not in event_card_image["src"]
-        # ):
-        #     return event_card_image["src"]
-        return image_url
+        if 'cover_original' in self.tc_event['media']:
+            return self.tc_event['media']['cover_original']['url']
+        else:
+            return
 
     def _price(self, event_soup): #+
         return re.sub('\s+', ' ', event_soup.find('div', class_='buy-button-se__button').text.strip())
@@ -267,8 +186,9 @@ class Ticketscloud(BaseParser):
     def _url(self, event_soup): #todo:
         return self.url
 
-    def _is_registration_open(self, event_soup): #todo: need to find
-        return self._price(event_soup) != "Билетов нет"
-
     def _org_id(self, event_soup):
-        return (str(re.findall(r'"org":{"id":"\w+"', str(event_soup.contents)))[15:-3])
+        return self.tc_event['org']['id']
+
+
+    def _is_registration_open(self, event_soup):
+        return self.tc_event['tickets_amount_vacant']>0

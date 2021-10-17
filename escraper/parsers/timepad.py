@@ -202,7 +202,10 @@ class Timepad(BaseParser):
 
             else:
                 address = event["location"]["address"].strip()
-                metro_station = self.city_subway.get_subway(address)
+                try:
+                    metro_station = self.city_subway.get_subway(address)
+                except:
+                    metro_station = None
                 if metro_station is not None:
                     address = f"{address}, м.{metro_station}"
 
