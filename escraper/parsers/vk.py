@@ -8,7 +8,7 @@ from .utils import STRPTIME
 from ..emoji import add_emoji
 
 from dotenv import load_dotenv
-dotenv_path = os.path.join(os.path.dirname(__file__), 'misk/vk.env')
+dotenv_path = os.path.join(os.path.dirname(__file__), 'misk/vk.env') # TODO: delete
 
 divide_list = lambda lst, sz: [lst[i:i+sz] for i in range(0, len(lst), sz)]
 
@@ -20,35 +20,46 @@ class VK(BaseParser):
     parser_prefix = "VK-"
     quantity = 200 #max 1000
 
-    count_query = 250
+    count_query = 10
     def __init__(self, token=None):
         if os.path.exists(dotenv_path):
             load_dotenv(dotenv_path)
+
         if token is None:
-            token = os.environ['VK_TOKEN']
-        user_id = os.environ['VK_ID']
+            if "VK_TOKEN" in os.environ:
+                token = os.environ['VK_TOKEN']
+            else:
+                raise ValueError("VK token was not found.")
+        if "VK_ID" in os.environ:
+            user_id = os.environ['VK_ID']
+        else:
+            raise ValueError("VK_ID was not found.")
         self.get_end_str = f'&access_token={token}&expires_in=86400&user_id={user_id}&v=5.103'
 
+    def get_token(self, client_id ):
+        url = f"https://oauth.vk.com/authorize?client_id={client_id}&display=page&redirect_uri=http://vk.com/&scope=groups,wall&response_type=token&v=5.131&state=123456"
 
-    def get_event(self):
+
+    def get_event(self, id):
         """Get one event by url / event_id"""
+        return  self.get_full_event([id])
 
     def get_events(self):
         event_data_general = []
         offset_count_query = 0
         while self.quantity > offset_count_query:
-            res, quantity_answer = self.request_events(count=self.count_query, offset=offset_count_query)
-            event_data_general += res
+            res= self.request_events(count=self.count_query, offset=offset_count_query)
+            if 'items' not in res: assert f"Error: {res}"
+            event_data_general += res['items']
             offset_count_query += self.count_query
-            if quantity_answer < self.quantity: self.quantity = quantity_answer
-        #print(event_data_general)
+            if res['count'] < self.quantity: self.quantity = res['count']
+            break
         event_ids = self.get_ids(event_data_general)
         event_data_full = []
         for event_ids_divided in divide_list(event_ids, 200):
             event_data_full += self.get_full_event(event_ids_divided)
 
         event_data_full = self.check_events(event_data_full)
-        #event_data_full = self.add_address(event_data_full)
 
         tags = ALL_EVENT_TAGS
         events = list()
@@ -57,15 +68,19 @@ class VK(BaseParser):
 
         return events
 
+    def request_events(self, q='%20', city_id=2, count=250, offset=0):
+        site = f'{self.BASE_URL_API}/groups.search?q={q}&type=event&future=1&city_id={city_id}&count={count}&offset={offset}{self.get_end_str}'
+        req = requests.get(site)
+        events = req.json()
+        return events['response']
+
     def get_ids(self, events):
         return [event['id'] for event in events]
 
     def get_full_event(self,ids):
         now = datetime.timestamp(datetime.now())
-        #finish_date = now + 60 * 60 * 24 * 30
         if len(ids) < 500:
             site = f"{self.BASE_URL_API}/groups.getById?group_ids={ids}&fields=addresses,site,description,status,cover,place,start_date,finish_date{self.get_end_str}"
-            # print(site)
             req = requests.get(site)
             events = req.json()['response']
             return events
@@ -101,7 +116,6 @@ class VK(BaseParser):
         site = f"{self.BASE_URL_API}/groups.getAddresses?group_id={event['id']}&address_ids={event['addresses']['main_address_id']}&fields=title,address{self.get_end_str}"
         req = requests.get(site)
         addresses = req.json()
-        print(addresses)
         if addresses['response']['count'] > 0:
             event['addresses']['address'] = addresses['response']['items'][0]['address']
             event['addresses']['place_name'] = addresses['response']['items'][0]['title']
@@ -110,15 +124,6 @@ class VK(BaseParser):
             event['addresses']['place_name'] = ''
         time.sleep(0.25)
         return event
-
-
-    def request_events(self, q='%20', city_id=2, count=250, offset=0):
-        site = f'{self.BASE_URL_API}/groups.search?q={q}&type=event&future=1&city_id={city_id}&count={count}&offset={offset}{self.get_end_str}'
-        req = requests.get(site)
-        events = req.json()
-        count = events['response']['count']
-        events = events['response']['items']
-        return events, count
 
 
     def _adress(self, event): #TODO: get address
@@ -151,8 +156,7 @@ class VK(BaseParser):
         if "main_address_id" in event['addresses']:
             if "address" not in event['addresses']:
                 event = self.add_address(event)
-            address_id = event['addresses']['place_name']
-            return address_id
+            return event['addresses']['place_name']
         return 'Санкт-Петербург'
 
     def _post_text(self, event):
@@ -167,6 +171,7 @@ class VK(BaseParser):
             return cover_url
         else:
             return None
+
     def _url(self,event):
         if event['site']!='':
             return event['site']
@@ -175,11 +180,11 @@ class VK(BaseParser):
         return None
 
     def _price(self, event):
-        return " "
+        return "во встрече"
 
     def _title(self, event):
         return add_emoji(event["name"])
 
     def _is_registration_open(self, event):
-        return True
+        return self._date_from(event)>datetime.today()
 
