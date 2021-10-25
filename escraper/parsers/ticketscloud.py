@@ -14,35 +14,27 @@ ORG_IDS = (
     '5dce558174fd6b0bcaa66524', '5e3d551b44d20ecf697408e4', '5e3bec5fea9c82d6958f8551'
 )
 
-
 class Ticketscloud(BaseParser):
     name = "Ticketscloud"
     BASE_URL = "https://ticketscloud.org/"
 
-    DATETIME_STRF = "%Y-%m-%d"
+    DATETIME_STRF = "%Y%m%dT%H%M%SZ"
     parser_prefix = "TC-"
     TIMEZONE = pytz.timezone("Europe/Moscow")
 
     def __init__(self):
         self.url = self.BASE_URL
         self.city_subway = Subway(city_id=2)  # 2 - Санкт петербург
-        #self.events_api = self.BASE_EVENTS_API
-
 
     def get_event(self, event_url=None, tags=None):
         if event_url is None:
             raise ValueError("'event_id' or 'event_url' required.")
         self.url = event_url
 
-        #response = self._request_get(event_url)
-
         event_soup = BeautifulSoup(
             self._request_get(event_url).text, "lxml"
         )
-        # if not is_moderated(response_json):
-        #     print("Event is not moderated")
-        #     event = None
-        #else:
+
         tags = tags or ALL_EVENT_TAGS
 
         script_tags = event_soup.find_all('script')
@@ -51,7 +43,6 @@ class Ticketscloud(BaseParser):
             text = script_tag.contents[0]
             if re.match('tc_event', text):
                 new_text = '='.join(text.strip().split('=')[1:])[:-1]
-                # print(new_text)
                 self.tc_event = json.loads(new_text)
                 break
         event = self.parse(event_soup, tags=tags)
@@ -91,7 +82,6 @@ class Ticketscloud(BaseParser):
             if response:
                 soup = BeautifulSoup(response.text, 'lxml')
                 list_event_from_soup = all_events = soup.find('div', class_='u-flex u-flex--wrap').find_all('div', class_='ticketscloud-event-item col-md-4')
-
             else:
                 list_event_from_soup = list()
 
@@ -105,13 +95,11 @@ class Ticketscloud(BaseParser):
                 if city!='Санкт-Петербург' or time>datetime.now()+timedelta(days=10):
                     continue
 
-                events.append(self.get_event(event_url=self.url)) #self.parse(event_soup, tags=tags or ALL_EVENT_TAGS))
-
+                events.append(self.get_event(event_url=self.url))
 
         return events
 
-    def _adress(self, event_soup): #+
-        #full_address = re.sub('\s+', ' ', event_soup.find('article', class_='col-md-9 col-sm-12').find('span').text.strip())
+    def _adress(self, event_soup):
         if not 'address' in self.tc_event['venue']: return
         full_address = self.tc_event['venue']['address']
         if "онлайн" in full_address.lower():
@@ -132,19 +120,18 @@ class Ticketscloud(BaseParser):
             metro_station = None
         if metro_station is not None:
             address = f"{address}, м.{metro_station}"
-
         return address
 
     def _category(self, event_soup):
         return
 
     def _date_from(self, event_soup):
-        return datetime.strptime(self.tc_event['lifetime'].split('\n')[1].strip().split('DATE-TIME:')[-1], "%Y%m%dT%H%M%SZ").astimezone(self.TIMEZONE)+timedelta(hours=3)
+        return datetime.strptime(self.tc_event['lifetime'].split('\n')[1].strip().split('DATE-TIME:')[-1], DATETIME_STRF).astimezone(self.TIMEZONE)+timedelta(hours=3)
 
-    def _date_to(self, event_soup): #TODO: take from <script> tc_event
-        return datetime.strptime(self.tc_event['lifetime'].split('\n')[2].strip().split('DATE-TIME:')[-1], "%Y%m%dT%H%M%SZ").astimezone(self.TIMEZONE)+timedelta(hours=3)
+    def _date_to(self, event_soup):
+        return datetime.strptime(self.tc_event['lifetime'].split('\n')[2].strip().split('DATE-TIME:')[-1], DATETIME_STRF).astimezone(self.TIMEZONE)+timedelta(hours=3)
 
-    def _date_from_to(self, event_soup): #+/-
+    def _date_from_to(self, event_soup):
         """
         Parse date from and to as string from event page.
         """
@@ -153,17 +140,12 @@ class Ticketscloud(BaseParser):
     def _id(self, event_soup):
         return self.parser_prefix + self.tc_event['id']
 
-    def _place_name(self, event_soup): #+
+    def _place_name(self, event_soup):
         address_name = re.sub('\s+', ' ',
                               event_soup.find('div', class_='event-info-se__address-part').find('address').text.strip())
         return re.sub('Санкт-Петербург, ', '', address_name)
 
-    def _post_text(self, event_soup): #+
-        # post_text = self.remove_html_tags(
-        #     event_soup.find("meta", property="og:description")["content"].replace(
-        #         "<br/>", "\n"
-        #     )
-        # )
+    def _post_text(self, event_soup):
         if event_soup.find('article',
                      class_='col-md-9 col-sm-12 showroom-event-slide__content showroom-event-slide__content_desc'):
             post_text = re.sub(r'\.(\w)', r'. \1', event_soup.find('article', class_='col-md-9 col-sm-12 showroom-event-slide__content showroom-event-slide__content_desc').find('p').text)
@@ -171,21 +153,21 @@ class Ticketscloud(BaseParser):
             post_text = ''
         return self.prepare_post_text(post_text)
 
-    def _poster_imag(self, event_soup): #TODO: check if exists and better regular
+    def _poster_imag(self, event_soup):
         if 'cover_original' in self.tc_event['media']:
             return self.tc_event['media']['cover_original']['url']
         else:
             return
 
-    def _price(self, event_soup): #+
+    def _price(self, event_soup):
         return re.sub('\s+', ' ', event_soup.find('div', class_='buy-button-se__button').text.strip())
 
-    def _title(self, event_soup): #+
+    def _title(self, event_soup):
         return add_emoji(
             event_soup.find('div', class_='event-info-se__title').text.strip()
         )
 
-    def _url(self, event_soup): #todo:
+    def _url(self, event_soup):
         return self.url
 
     def _org_id(self, event_soup):
