@@ -1,5 +1,5 @@
-import os,time
-from datetime import datetime
+import os, time
+from datetime import datetime, timedelta
 
 import requests
 
@@ -18,9 +18,9 @@ class VK(BaseParser):
     BASE_URL_API = "https://api.vk.com/method/"
 
     parser_prefix = "VK-"
-    quantity = 200 #max 1000
+    quantity = 1000 #max 1000
+    count_query = 100
 
-    count_query = 10
     def __init__(self, token=None):
         if os.path.exists(dotenv_path):
             load_dotenv(dotenv_path)
@@ -39,32 +39,35 @@ class VK(BaseParser):
     def get_token(self, client_id ):
         url = f"https://oauth.vk.com/authorize?client_id={client_id}&display=page&redirect_uri=http://vk.com/&scope=groups,wall&response_type=token&v=5.131&state=123456"
 
-
-    def get_event(self, id):
+    def get_event(self, event_id=None, event_url=None):
         """Get one event by url / event_id"""
-        return  self.get_full_event([id])
+        if event_url:
+            event_id = event_url.split('/')[-1].split('?')[0]
+        event_in_list = self.get_full_event(event_id)
+        if event_in_list:
+            return self.parse(event_in_list[0], tags=ALL_EVENT_TAGS)
 
     def get_events(self):
         event_data_general = []
         offset_count_query = 0
         while self.quantity > offset_count_query:
-            res= self.request_events(count=self.count_query, offset=offset_count_query)
+            res = self.request_events(count=self.count_query, offset=offset_count_query)
             if 'items' not in res: assert f"Error: {res}"
             event_data_general += res['items']
             offset_count_query += self.count_query
             if res['count'] < self.quantity: self.quantity = res['count']
-            break
+            time.sleep(0.5)
         event_ids = self.get_ids(event_data_general)
         event_data_full = []
         for event_ids_divided in divide_list(event_ids, 200):
             event_data_full += self.get_full_event(event_ids_divided)
+            time.sleep(0.5)
 
         event_data_full = self.check_events(event_data_full)
 
-        tags = ALL_EVENT_TAGS
         events = list()
         for event in event_data_full:
-            events.append(self.parse(event, tags=tags))
+            events.append(self.parse(event, tags=ALL_EVENT_TAGS))
 
         return events
 
@@ -72,29 +75,49 @@ class VK(BaseParser):
         site = f'{self.BASE_URL_API}/groups.search?q={q}&type=event&future=1&city_id={city_id}&count={count}&offset={offset}{self.get_end_str}'
         req = requests.get(site)
         events = req.json()
+        if 'response' not in events: return {}
         return events['response']
 
     def get_ids(self, events):
         return [event['id'] for event in events]
 
-    def get_full_event(self,ids):
-        now = datetime.timestamp(datetime.now())
+    def get_full_event(self, ids):
         if len(ids) < 500:
             site = f"{self.BASE_URL_API}/groups.getById?group_ids={ids}&fields=addresses,site,description,status,cover,place,start_date,finish_date{self.get_end_str}"
             req = requests.get(site)
-            events = req.json()['response']
-            return events
+            response = req.json()
+            if 'response' in response:
+                return response['response']
+            return []
+
+        # events = []
+        # limit = 500
+        # count_ids = 0
+        # page = 0
+        # while len(ids)>=count_ids:
+        #     min, max = limit*page, limit*(page+1)
+        #     ids_for_request = ids[min:max]
+        #     count_ids += len(ids_for_request)
+        #     site = f"{self.BASE_URL_API}/groups.getById?group_ids={ids}&fields=addresses,site,description,status,cover,place,start_date,finish_date{self.get_end_str}"
+        #     req = requests.get(site)
+        #     response = req.json()
+        #     if 'response' in response:
+        #         events+=response['response']
+        #     time.sleep(0.5)
+        # return events
+
+
+
 
     def check_events(self, events):
         bad_events_index = list()
         for i, event in enumerate(events):
-            if datetime.fromtimestamp(int(event['start_date'])).year!=datetime.today().year:
+            from_date = datetime.fromtimestamp(int(event['start_date']))
+            if datetime.today() > from_date or from_date > datetime.today()+timedelta(days=31):
                 bad_events_index.append(i)
-                continue
-            if 'finish_date' in event:
-                if datetime.fromtimestamp(int(event['finish_date'])).year != datetime.today().year:
+            elif 'finish_date' in event:
+                if datetime.fromtimestamp(int(event['finish_date'])) > from_date + timedelta(days=31):
                     bad_events_index.append(i)
-                    continue
         bad_events_index.reverse()
         for i in bad_events_index: events.pop(i)
         return events
@@ -126,7 +149,7 @@ class VK(BaseParser):
         return event
 
 
-    def _adress(self, event): #TODO: get address
+    def _adress(self, event):
         if "main_address_id" in event['addresses']:
             if "address" not in event['addresses']:
                 event = self.add_address(event)
@@ -152,7 +175,7 @@ class VK(BaseParser):
     def _id(self, event):
         return self.parser_prefix + str(event["id"])
 
-    def _place_name(self, event): #TODO: another parameter
+    def _place_name(self, event):
         if "main_address_id" in event['addresses']:
             if "address" not in event['addresses']:
                 event = self.add_address(event)
@@ -186,5 +209,5 @@ class VK(BaseParser):
         return add_emoji(event["name"])
 
     def _is_registration_open(self, event):
-        return self._date_from(event)>datetime.today()
+        return self._date_from(event) > datetime.today()
 
