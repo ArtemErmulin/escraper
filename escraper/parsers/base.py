@@ -6,7 +6,6 @@ from collections import namedtuple
 import requests
 from bs4 import BeautifulSoup
 
-
 ALL_EVENT_TAGS = (
     "adress",
     "category",
@@ -102,7 +101,7 @@ class BaseParser(ABC):
         return DataStorage(**data)
 
     def remove_html_tags(self, data):
-        return BeautifulSoup(data, "html.parser").text
+        return BeautifulSoup(data, "lxml").text
 
     def _request_get(self, *args, **kwargs):
         """
@@ -152,6 +151,8 @@ class BaseParser(ABC):
         return response
 
     def prepare_post_text(self, post_text):
+        qr = 0
+        if 'QR' in post_text: qr = 1
         if len(post_text) > 550:
             sentences = post_text.split(".")
             post = ""
@@ -161,5 +162,5 @@ class BaseParser(ABC):
                 else:
                     post_text = post
                     break
-
+        if qr == 1: post_text += "\n\nНеобходим QR-код!"
         return post_text
