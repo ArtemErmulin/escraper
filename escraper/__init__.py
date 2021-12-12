@@ -1,1 +1,1 @@
-from .parsers import Timepad, Radario, Ticketscloud, ALL_EVENT_TAGS
+from .parsers import Timepad, Radario, Ticketscloud, VK, ALL_EVENT_TAGS
