@@ -4,11 +4,8 @@ from datetime import datetime, timedelta
 import requests
 
 from .base import BaseParser, ALL_EVENT_TAGS
-from .utils import STRPTIME
-from ..emoji import add_emoji
 
-from dotenv import load_dotenv
-dotenv_path = os.path.join(os.path.dirname(__file__), 'misk/vk.env') # TODO: delete
+from ..emoji import add_emoji
 
 divide_list = lambda lst, sz: [lst[i:i+sz] for i in range(0, len(lst), sz)]
 
@@ -18,13 +15,10 @@ class VK(BaseParser):
     BASE_URL_API = "https://api.vk.com/method/"
 
     parser_prefix = "VK-"
-    quantity = 1000 #max 1000
+    quantity = 1000
     count_query = 100
 
     def __init__(self, token=None):
-        if os.path.exists(dotenv_path):
-            load_dotenv(dotenv_path)
-
         if token is None:
             if "VK_TOKEN" in os.environ:
                 token = os.environ['VK_TOKEN']
@@ -47,7 +41,35 @@ class VK(BaseParser):
         if event_in_list:
             return self.parse(event_in_list[0], tags=ALL_EVENT_TAGS)
 
-    def get_events(self):
+    def get_events(self, request_params=None):
+        """
+                Parameters:
+                -----------
+                request_params : dict, default None
+                    Parameters for timepad events
+                    (for more details see. http://dev.timepad.ru/api/get-v1-events/)
+
+                    days : int, default 15
+                        how many days from today to search for events
+
+                    city_id : int, default 2
+                        event city (2=>St.Petersburg)
+                Examples:
+                ---------
+                >>> vk = VK()
+
+                Select by city:
+                >>> params = dict(days=15)
+                >>> vk.get_events(request_params=params)
+                <list of events from Санкт-Петербург>
+            """
+
+        request_params = request_params or {}  # todo: add city_id and quantity to request_params
+        if 'days' in request_params:
+            days = request_params['days']
+        else:
+            days = 15
+
         event_data_general = []
         offset_count_query = 0
         while self.quantity > offset_count_query:
@@ -57,13 +79,14 @@ class VK(BaseParser):
             offset_count_query += self.count_query
             if res['count'] < self.quantity: self.quantity = res['count']
             time.sleep(0.5)
+
         event_ids = self.get_ids(event_data_general)
         event_data_full = []
         for event_ids_divided in divide_list(event_ids, 200):
             event_data_full += self.get_full_event(event_ids_divided)
             time.sleep(0.5)
 
-        event_data_full = self.check_events(event_data_full)
+        event_data_full = self.check_events(event_data_full, days)
 
         events = list()
         for event in event_data_full:
@@ -109,14 +132,14 @@ class VK(BaseParser):
 
 
 
-    def check_events(self, events):
+    def check_events(self, events, days=31):
         bad_events_index = list()
         for i, event in enumerate(events):
             from_date = datetime.fromtimestamp(int(event['start_date']))
-            if datetime.today() > from_date or from_date > datetime.today()+timedelta(days=31):
+            if datetime.today() > from_date or from_date > datetime.today()+timedelta(days=days):
                 bad_events_index.append(i)
             elif 'finish_date' in event:
-                if datetime.fromtimestamp(int(event['finish_date'])) > from_date + timedelta(days=31):
+                if datetime.fromtimestamp(int(event['finish_date'])) > from_date + timedelta(days=days):
                     bad_events_index.append(i)
         bad_events_index.reverse()
         for i in bad_events_index: events.pop(i)
