@@ -102,7 +102,7 @@ class Radario(BaseParser):
 
                 if response:
                     # get only 20 events
-                    soup = BeautifulSoup(response.text, "html.parser")
+                    soup = BeautifulSoup(response.text, "lxml")
                     list_event_from_soup = soup.find_all("div", {"class": "event-card"})
 
                 else:
@@ -116,7 +116,7 @@ class Radario(BaseParser):
                     url = self.events_api + event_id
 
                     event_soup = BeautifulSoup(
-                        self._request_get(url).text, "html.parser"
+                        self._request_get(url).text, "lxml"
                     )
                     events.append(self.parse(event_soup, tags=tags or ALL_EVENT_TAGS))
 
@@ -176,9 +176,9 @@ class Radario(BaseParser):
         # - "dd month, HH:MM-HH:MM"
         # - "dd month, HH:MM"
         # - "dd-dd month"
-        if not re.match(r"^\d\d \w+,", strfdatetime) and not re.match(
-            r"^\d\d-\d\d \w+$", strfdatetime
-        ):
+        if not re.match(r"^\d\d \w+,", strfdatetime) \
+            and not re.match(r"^\d\d-\d\d \w+$", strfdatetime)\
+            and not re.match(r"^\d\d \w+ \d{4}", strfdatetime):
             raise ValueError(
                 f"Unknown radario from-to datetime string: {strfdatetime!r}.\n"
                 f"Event url: {self._url(event_soup)}"
@@ -220,6 +220,17 @@ class Radario(BaseParser):
             month_to = month_from
             hour_to = 0
             minute_to = 0
+        # dd month yyyy - #todo date_to and year
+        elif re.match(r"^\d\d \w+ \d{4}", strfdatetime):
+            strf_date_from , strf_date_to = strfdatetime.split(' - ')
+
+            day_from = int(strfdatetime[:2])
+            month_from = int(monthes[strfdatetime[3:].split(" ")[0]])
+            hour_from = 0
+            minute_from = 0
+
+            day_to = day_from
+            month_to = month_from
 
         daytime_from = datetime.now(tz=self.TIMEZONE).replace(
             month=month_from,
@@ -229,6 +240,7 @@ class Radario(BaseParser):
             second=0,
             microsecond=0,
         )
+
 
         if hour_to is not None and minute_to is not None:
             daytime_to = datetime.now(tz=self.TIMEZONE).replace(
