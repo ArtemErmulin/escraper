@@ -3,7 +3,6 @@ import re, json
 import warnings
 from datetime import datetime, timedelta
 
-from find_metro.metro import get_subway_name as Subway
 import pytz
 from bs4 import BeautifulSoup
 
@@ -24,7 +23,6 @@ class Ticketscloud(BaseParser):
 
     def __init__(self):
         self.url = self.BASE_URL
-        self.city_subway = Subway(city_id=2)  # 2 - Санкт петербург
 
     def get_event(self, event_url=None, tags=None):
         if event_url is None:
@@ -114,12 +112,6 @@ class Ticketscloud(BaseParser):
             else:
                 address = full_address
 
-        try:
-            metro_station = self.city_subway.get_subway(address)
-        except:
-            metro_station = None
-        if metro_station is not None:
-            address = f"{address}, м.{metro_station}"
         return address
 
     def _category(self, event_soup):

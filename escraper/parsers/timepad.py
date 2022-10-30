@@ -4,7 +4,6 @@ import itertools
 import re
 from pathlib import Path
 
-from find_metro.metro import get_subway_name as Subway
 import pytz
 
 from .base import BaseParser, ALL_EVENT_TAGS
@@ -62,7 +61,6 @@ class Timepad(BaseParser):
 
         self._token = token
         self.headers = dict(Authorization=f"Bearer {self._token}")
-        self.city_subway = Subway(city_id=2)  # 2 - Санкт петербург
 
     def get_event(self, event_id=None, event_url=None, tags=None):
         if event_url is not None:
@@ -202,12 +200,7 @@ class Timepad(BaseParser):
 
             else:
                 address = event["location"]["address"].strip()
-                try:
-                    metro_station = self.city_subway.get_subway(address)
-                except:
-                    metro_station = None
-                if metro_station is not None:
-                    address = f"{address}, м.{metro_station}"
+
 
         return self.remove_html_tags(address)
 
