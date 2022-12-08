@@ -118,10 +118,10 @@ class Ticketscloud(BaseParser):
         return
 
     def _date_from(self, event_soup):
-        return datetime.strptime(self.tc_event['lifetime'].split('\n')[1].strip().split('DATE-TIME:')[-1], self.DATETIME_STRF).astimezone(self.TIMEZONE)+timedelta(hours=3)
+        return datetime.strptime(self.tc_event['lifetime'].split('\n')[1].strip().split('DATE-TIME:')[-1], self.DATETIME_STRF).astimezone(self.TIMEZONE)
 
     def _date_to(self, event_soup):
-        return datetime.strptime(self.tc_event['lifetime'].split('\n')[2].strip().split('DATE-TIME:')[-1], self.DATETIME_STRF).astimezone(self.TIMEZONE)+timedelta(hours=3)
+        return datetime.strptime(self.tc_event['lifetime'].split('\n')[2].strip().split('DATE-TIME:')[-1], self.DATETIME_STRF).astimezone(self.TIMEZONE)
 
     def _date_from_to(self, event_soup):
         """
