@@ -50,9 +50,18 @@ class Radario(BaseParser):
         self.url = self.BASE_URL
         self.events_api = self.BASE_EVENTS_API
 
-    def get_event(self, *args, **kwargs):
-        """Currently not implemented"""
-        raise NotImplementedError("Currently not implemented.")
+    def get_event(self, event_id=None, event_url=None, tags=None):
+
+        if event_id is not None and event_url is None:
+            event_url = "https://radario.ru/events/" + str(event_id)
+        elif event_url is None:
+            raise ValueError("'event_id' or 'event_url' required.")
+
+        event_soup = BeautifulSoup(
+            self._request_get(event_url).text, "lxml"
+        )
+        event = self.parse(event_soup, tags=tags or ALL_EVENT_TAGS)
+        return event
 
     def get_events(self, request_params=None, tags=None):
         """
