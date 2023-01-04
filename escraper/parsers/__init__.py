@@ -3,6 +3,7 @@ from .timepad import Timepad
 from .radario import Radario
 from .ticketscloud import Ticketscloud
 from .vk import VK
+from .qtickets import QTickets
 
 
 all_parsers = dict(

@@ -241,25 +241,25 @@ class Radario(BaseParser):
             day_to = day_from
             month_to = month_from
 
-        daytime_from = datetime.now().astimezone(self.TIMEZONE).replace(
+        daytime_from = datetime.now().replace(
             month=month_from,
             day=day_from,
             hour=hour_from,
             minute=minute_from,
             second=0,
             microsecond=0,
-        )
+        ).astimezone(self.TIMEZONE)
 
 
         if hour_to is not None and minute_to is not None:
-            daytime_to = datetime.now().astimezone(self.TIMEZONE).replace(
+            daytime_to = datetime.now().replace(
                 month=month_to,
                 day=day_to,
                 hour=hour_to,
                 minute=minute_to,
                 second=0,
                 microsecond=0,
-            )
+            ).astimezone(self.TIMEZONE)
         else:
             daytime_to = None
 
