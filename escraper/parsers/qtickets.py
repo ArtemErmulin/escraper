@@ -158,7 +158,7 @@ class QTickets(BaseParser):
             hour_from, min_from = 17, 0
 
             date_to = dates[1].strip().split(' ')
-            month_to = monthes[date_to[1].strip()]
+            month_to = int(monthes[date_to[1].strip()])
             day_to = date_to[0].strip()
             hour_to, min_to = 19, 0
 
