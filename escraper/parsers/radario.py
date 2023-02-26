@@ -44,11 +44,12 @@ class Radario(BaseParser):
     BASE_EVENTS_API = "https://radario.ru/events/"
     DATETIME_STRF = "%Y-%m-%d"
     parser_prefix = "RADARIO-"
-    TIMEZONE = pytz.timezone("Europe/Moscow")
+
 
     def __init__(self):
         self.url = self.BASE_URL
         self.events_api = self.BASE_EVENTS_API
+        self.timedelta_hours = self.timedelta_with_gmt0()
 
     def get_event(self, event_id=None, event_url=None, tags=None):
         if event_id is not None and event_url is None:
@@ -217,6 +218,9 @@ class Radario(BaseParser):
                 strtime_to = strfdatetime[-5:]
                 hour_to = int(strtime_to.split(":")[0])
                 minute_to = int(strtime_to.split(":")[1])
+                hour_to = hour_to - self.timedelta_hours
+
+            hour_from = hour_from - self.timedelta_hours
 
         # dd-dd month
         elif re.match(r"^\d\d-\d\d \w+$", strfdatetime):

@@ -35,11 +35,12 @@ class QTickets(BaseParser):
     BASE_EVENTS_API = "https://spb.qtickets.events"
     DATETIME_STRF = "%Y-%m-%d"
     parser_prefix = "QT-"
-    TIMEZONE = pytz.timezone("Europe/Moscow")
+
 
     def __init__(self):
         self.url = self.BASE_URL
         self.events_api = self.BASE_EVENTS_API
+        self.timedelta_hours = self.timedelta_with_gmt0()
 
     def get_event(self, event_url=None, tags=None):
         if event_url is None:
@@ -147,7 +148,7 @@ class QTickets(BaseParser):
             hour_from, min_from = time_split[-1].strip().split(':')
 
             _, day_from, month_name_from = time_split[0].split(' ')
-            month_from = monthes[month_name_from.strip()]
+            month_from = int(monthes[month_name_from.strip()])
 
         else:
             dates = date_string.split('–')
@@ -165,13 +166,16 @@ class QTickets(BaseParser):
             if month_from < datetime.now().month:
                 year_now = year_now - 1
 
-        self._date_from_ = datetime(year_now, int(month_from), int(day_from), int(hour_from), int(min_from)).astimezone(self.TIMEZONE)
+        hour_from = int(hour_from) - self.timedelta_hours
+
+        self._date_from_ = datetime(year_now, month_from, int(day_from), hour_from, int(min_from)).astimezone(self.TIMEZONE)
 
         if not day_to:
             self._date_to_ = self._date_from_ + timedelta(hours=2)
         else:
-            if month_to<month_from: year_now = year_now + 1 #add logic for date_from in previous year
-            self._date_to_ = datetime(year_now, int(month_to), int(day_to), int(hour_to), int(min_to)).astimezone(self.TIMEZONE)
+            if month_to < month_from: year_now = year_now + 1 #add logic for date_from in previous year
+            hour_to = int(hour_to) - self.timedelta_hours
+            self._date_to_ = datetime(year_now, month_to, int(day_to), hour_to, int(min_to)).astimezone(self.TIMEZONE)
 
         return self._date_from_
 

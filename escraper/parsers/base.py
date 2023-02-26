@@ -4,6 +4,7 @@ from datetime import datetime
 from collections import namedtuple
 
 import requests
+import pytz
 from bs4 import BeautifulSoup
 
 ALL_EVENT_TAGS = (
@@ -25,6 +26,9 @@ ALL_EVENT_TAGS = (
 
 class BaseParser(ABC):
     MAX_NUMBER_CONNECTION_ATTEMPTS = 3
+    TIMEZONE = pytz.timezone("Europe/Moscow")
+    TIMEZONE_zero = pytz.timezone("Europe/London")
+
 
     @abstractmethod
     def get_event(self):
@@ -161,3 +165,8 @@ class BaseParser(ABC):
                     post_text = post
                     break
         return post_text
+
+    def timedelta_with_gmt0(self):
+        now = datetime.today()
+
+        return now.astimezone(self.TIMEZONE).hour - now.astimezone(self.TIMEZONE_zero).hour

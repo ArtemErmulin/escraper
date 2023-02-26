@@ -184,11 +184,11 @@ class VK(BaseParser):
         return 'vk'
 
     def _date_from(self, event):
-        return datetime.fromtimestamp(int(event['start_date']))
+        return datetime.fromtimestamp(int(event['start_date'])).astimezone(self.TIMEZONE)
 
     def _date_to(self, event):
         if "finish_date" in event:
-            return datetime.fromtimestamp(int(event['finish_date']))
+            return datetime.fromtimestamp(int(event['finish_date'])).astimezone(self.TIMEZONE)
         return None
 
     def _date_from_to(self, event):
