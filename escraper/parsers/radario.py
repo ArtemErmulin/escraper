@@ -218,9 +218,11 @@ class Radario(BaseParser):
                 strtime_to = strfdatetime[-5:]
                 hour_to = int(strtime_to.split(":")[0])
                 minute_to = int(strtime_to.split(":")[1])
-                hour_to = hour_to - self.timedelta_hours
+                if hour_to > self.timedelta_hours:
+                    hour_to = hour_to - self.timedelta_hours
 
-            hour_from = hour_from - self.timedelta_hours
+            if hour_from > self.timedelta_hours:
+                hour_from = hour_from - self.timedelta_hours
 
         # dd-dd month
         elif re.match(r"^\d\d-\d\d \w+$", strfdatetime):
