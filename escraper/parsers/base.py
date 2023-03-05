@@ -122,11 +122,13 @@ class BaseParser(ABC):
 
                 if not response.ok:
                     if response.content:
-                        response_status = response.json()["response_status"]
-
+                        try:
+                            response_status = response.json()["response_status"]
+                        except:
+                            response_status = {"error_code": response.status_code, "message": response.reason}
                     else:
                         response_status = dict(
-                            error_code="None",
+                            error_code=response.status_code,
                             message="response content is empty",
                         )
 
