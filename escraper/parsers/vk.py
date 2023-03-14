@@ -232,5 +232,5 @@ class VK(BaseParser):
         return add_emoji(event["name"])
 
     def _is_registration_open(self, event):
-        return self._date_from(event) > datetime.today()
+        return self._date_from(event) > datetime.today().astimezone(self.TIMEZONE)
 
