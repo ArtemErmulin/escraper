@@ -136,31 +136,31 @@ class Radario(BaseParser):
         return events
 
     def _adress(self, event_soup):
-        full_adress = event_soup.find(
+        full_address = event_soup.find(
             "span", {"class": "text-secondary mt-2"}
         ).text.strip()
 
-        full_adress = full_adress.replace(", Центральный район", "")
+        full_address = full_address.replace(", Центральный район", "")
 
         # remove zip code
-        full_adress = re.sub(r" \d+ ", " ", full_adress)
-        full_adress = re.sub(r" \d+, ", " ", full_adress)
-        full_adress = re.sub(r"^\d+, ", "", full_adress)
+        full_address = re.sub(r" \d+ ", " ", full_address)
+        full_address = re.sub(r" \d+, ", " ", full_address)
+        full_address = re.sub(r"^\d+, ", "", full_address)
 
-        if "онлайн" in full_adress.lower():
-            adress = "Онлайн"
+        if "онлайн" in full_address.lower():
+            address = "Онлайн"
         else:
-            if full_adress.find(", Санкт-Петербург") != -1:
-                end_idx = full_adress.find(", Санкт-Петербург")
-                adress = full_adress[:end_idx]
+            if full_address.find(", Санкт-Петербург") != -1:
+                end_idx = full_address.find(", Санкт-Петербург")
+                address = full_address[:end_idx]
 
-            elif full_adress.find("Санкт-Петербург, ") != -1:
-                adress = full_adress.replace("Санкт-Петербург, ", "")
+            elif full_address.find("Санкт-Петербург, ") != -1:
+                address = full_address.replace("Санкт-Петербург, ", "")
 
             else:
-                adress = full_adress
+                address = full_address
 
-        return adress
+        return address
 
     def _category(self, event_soup):
         return event_soup.find("a", {"class": "event-page__tag"}).text.strip()
