@@ -233,6 +233,16 @@ class Timepad(BaseParser):
     def _place_name(self, event):
         return self.remove_html_tags(event["organization"]["name"]).strip()
 
+    def _full_text(self, event):
+        if event.get("description_html"):
+            full_text = self.remove_html_tags(event["description_html"])
+        elif event.get("description_short"):
+            full_text = self.remove_html_tags(event["description_short"])
+        else:
+            full_text = ""
+
+        return full_text
+
     def _post_text(self, event):
         post_text = ""
 

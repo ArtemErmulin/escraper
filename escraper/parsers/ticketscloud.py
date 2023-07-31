@@ -137,12 +137,17 @@ class Ticketscloud(BaseParser):
                               event_soup.find('div', class_='event-info-se__address-part').find('address').text.strip())
         return re.sub('Санкт-Петербург, ', '', address_name)
 
-    def _post_text(self, event_soup):
+
+    def _full_text(self, event_soup) -> str:
         if event_soup.find('article',
                      class_='col-md-9 col-sm-12 showroom-event-slide__content showroom-event-slide__content_desc'):
             post_text = re.sub(r'\.(\w)', r'. \1', event_soup.find('article', class_='col-md-9 col-sm-12 showroom-event-slide__content showroom-event-slide__content_desc').find('p').text)
         else:
             post_text = ''
+        return post_text
+
+    def _post_text(self, event_soup):
+        post_text = self._full_text(event_soup)
         return self.prepare_post_text(post_text)
 
     def _poster_imag(self, event_soup):

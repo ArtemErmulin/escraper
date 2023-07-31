@@ -297,13 +297,19 @@ class Radario(BaseParser):
     def _place_name(self, event_soup):
         return event_soup.find("span", {"class": "text-secondary mt-3"}).text.strip()
 
-    def _post_text(self, event_soup):
-        post_text = self.remove_html_tags(
+
+    def _full_text(self, event_soup) -> str:
+        return self.remove_html_tags(
             event_soup.find("meta", property="og:description")["content"].replace(
                 "<br/>", "\n"
             )
         )
-        return self.prepare_post_text(post_text)
+
+
+    def _post_text(self, event_soup):
+        return self.prepare_post_text(self._full_text(event_soup))
+
+
 
     def _poster_imag(self, event_soup):
         event_card_image = event_soup.find("img", {"class": "event-page__image"})

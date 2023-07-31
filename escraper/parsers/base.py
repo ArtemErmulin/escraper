@@ -16,6 +16,7 @@ ALL_EVENT_TAGS = (
     "id",
     "place_name",
     "post_text",
+    "full_text",
     "poster_imag",
     "price",
     "title",
@@ -68,6 +69,10 @@ class BaseParser(ABC):
 
     @abstractmethod
     def _post_text(self) -> str:
+        """Event post text"""
+
+    @abstractmethod
+    def _full_text(self) -> str:
         """Event post text"""
 
     @abstractmethod

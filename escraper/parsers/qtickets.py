@@ -200,7 +200,7 @@ class QTickets(BaseParser):
     def _place_name(self, event_soup):
         return event_soup.find("a", {"class": "place"}).text.strip()
 
-    def _post_text(self, event_soup):
+    def _full_text(self, event_soup) -> str:
         post_text_soup = event_soup.find("div", {"class": "text"})
         if post_text_soup:
             post_text = self.remove_html_tags(
@@ -208,7 +208,10 @@ class QTickets(BaseParser):
             ).strip()
         else:
             post_text = ''
-        return self.prepare_post_text(post_text)
+        return post_text
+
+    def _post_text(self, event_soup):
+        return self.prepare_post_text(self._full_text(event_soup))
 
     def _poster_imag(self, event_soup):
         event_card_image = event_soup.find("div", {"class": "center_area"}).find("img")
