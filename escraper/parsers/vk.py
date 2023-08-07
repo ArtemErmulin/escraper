@@ -211,7 +211,7 @@ class VK(BaseParser):
 
     def _post_text(self, event):
         url = f"\nПодробности: {self.BASE_URL}{event['screen_name']}"
-        return self.prepare_post_text(self._full_text)+url
+        return self.prepare_post_text(self._full_text(event))+url
 
     def _poster_imag(self, event):
         if event['cover']['enabled']!=0:
