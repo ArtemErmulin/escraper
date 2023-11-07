@@ -55,6 +55,7 @@ def test_radario_get_events(requests_get_events):
     assert event.date_from_to == "01 января, 00:00"
     assert event.id == Radario.parser_prefix + "test id"
     assert event.place_name == "test place_name"
+    assert event.post_text == "test full_text"
     assert event.post_text == "test post_text"
     assert event.poster_imag == "test_image.png"
     assert event.price == "test price"
