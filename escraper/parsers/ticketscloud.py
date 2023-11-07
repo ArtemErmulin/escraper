@@ -47,7 +47,7 @@ class Ticketscloud(BaseParser):
 
         return event
 
-    def get_events(self, org_ids=None, tags=None):
+    def get_events(self, org_ids=None, tags=None, city='spb'):
         """
         Parameters:
         -----------
@@ -71,6 +71,7 @@ class Ticketscloud(BaseParser):
         """
         if org_ids is None: org_ids = ORG_IDS
 
+        self.city = city
         events = list()
 
         for org_id in org_ids:
@@ -90,7 +91,7 @@ class Ticketscloud(BaseParser):
                     event_card.find(class_='ticketscloud-event-item__time').text.replace(',', ''), "%d.%m.%Y %H:%M")
 
                 city = event_card.find('span', class_=None).text
-                if city!='Санкт-Петербург' or time>datetime.now()+timedelta(days=10):
+                if (city != 'Санкт-Петербург' and self.city == 'spb') or time>datetime.now()+timedelta(days=10):
                     continue
 
                 events.append(self.get_event(event_url=self.url))

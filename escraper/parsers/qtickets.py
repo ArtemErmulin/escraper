@@ -32,14 +32,11 @@ STRPTIME = "%d %m %H:%M"
 class QTickets(BaseParser):
     name = "qtickets"
     BASE_URL = "https://spb.qtickets.events"
-    BASE_EVENTS_API = "https://spb.qtickets.events"
     DATETIME_STRF = "%Y-%m-%d"
     parser_prefix = "QT-"
 
-
     def __init__(self):
         self.url = self.BASE_URL
-        self.events_api = self.BASE_EVENTS_API
         self.timedelta_hours = self.timedelta_with_gmt0()
 
     def get_event(self, event_url=None, tags=None):
@@ -81,8 +78,11 @@ class QTickets(BaseParser):
         >>> request_params = {
             "date_to": "2020-01-02",
         }
-        >>> radario.get_events(request_params=request_params)  # doctest: +SKIP
+        >>> qt.get_events(request_params=request_params)  # doctest: +SKIP
         """
+
+        if "city" in request_params:
+            self.url = self.url.replace('spb', request_params['city'])
 
         if "date_to" in request_params:
             date_to = request_params["date_to"]
@@ -100,7 +100,7 @@ class QTickets(BaseParser):
         events = list()
         page = 1
         while True:
-            url = " https://spb.qtickets.events/?page=" + str(page)
+            url = f"{self.url}/?page={str(page)}"
             response = self._request_get(url)
 
             dates = list()
@@ -116,12 +116,12 @@ class QTickets(BaseParser):
                 date = datetime.fromisoformat(
                     event_card.find("time", {"class":"place"})['datetime']
                 ).astimezone(self.TIMEZONE)
-                #print(date)
                 dates.append(date)
                 event_soup = BeautifulSoup(self._request_get(event_url).text, "lxml")
                 events.append(self.parse(event_soup, tags=tags or ALL_EVENT_TAGS))
             page += 1
-            if max(dates)>=maximum_date: break
+
+            if dates and max(dates)>=maximum_date: break
         return events
 
     def _adress(self, event_soup):

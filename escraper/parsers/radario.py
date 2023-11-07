@@ -99,6 +99,10 @@ class Radario(BaseParser):
         """
         request_params = (request_params or dict())
 
+        if "city" in request_params:
+            self.url = self.url.replace('spb', request_params['city'])
+            request_params.pop("city")
+
         if request_params.pop("online", False):
             # convert "https://spb.radario.ru/" to "https://online.radario.ru/"
             self.url = self.url.replace("spb", "online")
@@ -188,7 +192,8 @@ class Radario(BaseParser):
         # - "dd-dd month"
         if not re.match(r"^\d\d \w+,", strfdatetime) \
             and not re.match(r"^\d\d-\d\d \w+$", strfdatetime)\
-            and not re.match(r"^\d\d \w+ \d{4}", strfdatetime):
+            and not re.match(r"^\d\d \w+ \d{4}", strfdatetime)\
+            and not re.match(r"^\d\d \w+-\d\d \w+", strfdatetime):
             raise ValueError(
                 f"Unknown radario from-to datetime string: {strfdatetime!r}.\n"
                 f"Event url: {self._url(event_soup)}"
@@ -246,6 +251,17 @@ class Radario(BaseParser):
 
             day_to = day_from
             month_to = month_from
+        # dd month-dd month
+        elif re.match(r"^\d\d \w+-\d\d \w+", strfdatetime):
+            strf_date_from , strf_date_to = strfdatetime.split('-')
+            day_from, month_from = strf_date_from.split(' ')
+            day_from = int(day_from)
+            month_from = int(monthes[month_from.strip()])
+            day_to, month_to = strf_date_from.split(' ')
+            day_to = int(day_to)
+            month_to = int(monthes[month_to.strip()])
+            hour_from = 0
+            minute_from = 0
 
         daytime_from = datetime.now().replace(
             month=month_from,
@@ -255,6 +271,7 @@ class Radario(BaseParser):
             second=0,
             microsecond=0,
         ).astimezone(self.TIMEZONE)
+
 
 
         if hour_to is not None and minute_to is not None:

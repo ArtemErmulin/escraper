@@ -182,11 +182,11 @@ class Timepad(BaseParser):
 
         else:
             if "address" not in event["location"]:
-                if event["location"]["city"] in ["Санкт-Петербург"]:
-                    address = "Санкт-Петербург"
-
-                elif event["location"]["city"] == "Без города":
+                if event["location"]["city"] == "Без города":
                     address = "Онлайн"
+
+                elif event["location"]["city"]:
+                    address = event["location"]["city"]
 
                 elif "coordinates" in event["location"]:
                     address = ", ".join(

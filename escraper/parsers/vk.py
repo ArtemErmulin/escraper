@@ -29,6 +29,7 @@ class VK(BaseParser):
         else:
             raise ValueError("VK_ID was not found.")
         self.get_end_str = f'&access_token={token}&expires_in=86400&user_id={user_id}&v=5.103'
+        self.city = 'Санкт-Петербург'
 
     def get_token(self, client_id ):
         url = f"https://oauth.vk.com/authorize?client_id={client_id}&display=page&redirect_uri=http://vk.com/&scope=groups,wall&response_type=token&v=5.131&state=123456"
@@ -70,10 +71,16 @@ class VK(BaseParser):
         else:
             days = 15
 
+        if 'city_id' in request_params:
+            self.city = request_params['city']
+            city_id = request_params['city_id']
+        else:
+            city_id = 2
+
         event_data_general = []
         offset_count_query = 0
         while self.quantity > offset_count_query:
-            res = self.request_events(count=self.count_query, offset=offset_count_query)
+            res = self.request_events(count=self.count_query, offset=offset_count_query, city_id=city_id)
             if 'items' not in res: assert f"Error: {res}"
             event_data_general += res['items']
             offset_count_query += self.count_query
@@ -178,7 +185,7 @@ class VK(BaseParser):
                 event = self.add_address(event)
             address_id = event['addresses']['address']
             return address_id
-        return 'Санкт-Петербург'
+        return self.city
 
     def _category(self, event):
         return 'vk'
@@ -203,7 +210,7 @@ class VK(BaseParser):
             if "address" not in event['addresses']:
                 event = self.add_address(event)
             return event['addresses']['place_name']
-        return 'Санкт-Петербург'
+        return self.city
 
     def _full_text(self, event) -> str:
         post_text = event['description']
