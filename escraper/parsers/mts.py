@@ -10,6 +10,7 @@ class MTS(BaseParser):
     name = "mts"
     BASE_URL = "https://live.mts.ru/"
     parser_prefix = "MTS-"
+    DATETIME_STRF = "%Y-%m-%dT%H:%M:%S%z"
 
     def __init__(self):
         self.url = self.BASE_URL
@@ -107,6 +108,7 @@ class MTS(BaseParser):
                     if event_id in existed_event_ids: continue
                     events.append(self.get_event(event_url=event_url, tags=tags))
                     existed_event_ids.append(event_id)
+                    print(events[-1])
 
                 scrape_date += timedelta(days=1)
 
@@ -126,11 +128,11 @@ class MTS(BaseParser):
         return event_json["category"]["title"]
 
     def _date_from(self, event_json):
-        self._date_from_ = datetime.strptime(event_json["eventClosestDateTime"], '%Y-%m-%dT%H:%M:%S').astimezone(self.TIMEZONE)
+        self._date_from_ = datetime.strptime(event_json["eventClosestDateTime"]+'Z', self.DATETIME_STRF).astimezone(self.TIMEZONE)
         return self._date_from_
 
     def _date_to(self, event_json):
-        date_to = datetime.strptime(event_json["lastEventDateTime"], '%Y-%m-%dT%H:%M:%S').astimezone(self.TIMEZONE)
+        date_to = datetime.strptime(event_json["lastEventDateTime"]+'Z', self.DATETIME_STRF).astimezone(self.TIMEZONE)
         if date_to > self._date_from_ + timedelta(days=7):
              self._date_to_ = self._date_from_
         else:
