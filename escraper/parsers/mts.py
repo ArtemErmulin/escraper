@@ -1,4 +1,4 @@
-from datetime import datetime,timedelta
+from datetime import datetime, timedelta
 
 from bs4 import BeautifulSoup
 import json
@@ -121,9 +121,9 @@ class MTS(BaseParser):
 
 
     def _adress(self, event_json):
-        if 'address' in event_json["venue"]:
+        if 'address' in event_json["venue"] and event_json["venue"]['address'] is not None:
             full_address = event_json["venue"]["address"].strip()
-            full_address = full_address.replace("г. Санкт-Петербург, ", "").replace("Санкт-Петербург, ", "")
+            full_address = full_address.replace("г. Санкт-Петербург, ", "").replace("г Санкт-Петербург, ", "").replace("Санкт-Петербург, ", "")
         else:
             full_address = ''
 
@@ -145,7 +145,7 @@ class MTS(BaseParser):
         return self._date_to_
 
     def _date_from_to(self, event_json):
-        return f"{self._date_from_.date} – {self._date_to_.date}"
+        return f"{self._date_from_.date()} – {self._date_to_.date()}"
 
     def _id(self, event_json):
         return self._id_from_url(self.event_url)
