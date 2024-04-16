@@ -1,6 +1,5 @@
 from datetime import datetime, timedelta
 
-from bs4 import BeautifulSoup
 import json
 
 from .base import BaseParser, ALL_EVENT_TAGS
@@ -22,7 +21,7 @@ class MTS(BaseParser):
         body = self._request_get(event_url).text
         json_body = body.split('<script id="__NEXT_DATA__" type="application/json">')[-1].split('</script>')[0]
 
-        event_json = json.loads(json_body)["props"]["pageProps"]["initialState"]["Announcements"]["announcement"]
+        event_json = json.loads(json_body)["props"]["pageProps"]["initialState"]["Announcements"]["announcementDetails"]
         self.event_url = event_url
         event = self.parse(event_json, tags=tags or ALL_EVENT_TAGS)
         return event
@@ -99,17 +98,11 @@ class MTS(BaseParser):
             while scrape_date <= date_to:
                 scrape_url = category_url + f"?date={scrape_date.date()}"
                 response = self._request_get(scrape_url)
+                json_body = response.text.split('<script id="__NEXT_DATA__" type="application/json">')[-1].split('</script>')[0]
+                event_list_json = json.loads(json_body)["props"]["pageProps"]["initialState"]["Announcements"]["announcementPreviewCollection"]["items"]
 
-                soup = BeautifulSoup(response.text, "lxml")
-                events_field = soup.find("div", {"class": "flexboxgrid_row__RS3qQ"} )
-
-                if events_field:
-                    list_event_from_soup = events_field.find_all("article")
-                else:
-                    list_event_from_soup = []
-
-                for event_card in list_event_from_soup:
-                    event_url = 'https://live.mts.ru' + event_card.find("a")["href"]
+                for event_json in event_list_json:
+                    event_url = 'https://live.mts.ru' + event_json['url']
                     event_id = self._id_from_url(event_url)
                     if event_id in existed_event_ids: continue
                     events.append(self.get_event(event_url=event_url, tags=tags))
