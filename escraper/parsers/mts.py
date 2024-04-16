@@ -69,9 +69,9 @@ class MTS(BaseParser):
         """
 
         if "city" in request_params:
-            self.url = self.url + request_params['city']
+            url = self.url + request_params['city']
         else:
-            self.url = self.url + "sankt-peterburg"
+            url = self.url + "sankt-peterburg"
 
         if "date_from" in request_params:
             date_from = datetime.strptime(request_params["date_from"])
@@ -93,11 +93,12 @@ class MTS(BaseParser):
         events = list()
 
         for category in categories:
-            category_url = self.url + '/' + category
+
+            category_url = url + '/' + category
             scrape_date = date_from
             while scrape_date <= date_to:
-                url = category_url + f"?date={scrape_date.date()}"
-                response = self._request_get(url)
+                scrape_url = category_url + f"?date={scrape_date.date()}"
+                response = self._request_get(scrape_url)
 
                 soup = BeautifulSoup(response.text, "lxml")
                 events_field = soup.find("div", {"class": "flexboxgrid_row__RS3qQ"} )
@@ -120,9 +121,11 @@ class MTS(BaseParser):
 
 
     def _adress(self, event_json):
-        full_address = event_json["venue"]["address"].strip()
-
-        full_address = full_address.replace("г. Санкт-Петербург, ", "").replace("Санкт-Петербург, ", "")
+        if 'address' in event_json["venue"]:
+            full_address = event_json["venue"]["address"].strip()
+            full_address = full_address.replace("г. Санкт-Петербург, ", "").replace("Санкт-Петербург, ", "")
+        else:
+            full_address = ''
 
         return full_address
 
