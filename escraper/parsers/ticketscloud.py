@@ -80,7 +80,11 @@ class Ticketscloud(BaseParser):
 
             if response:
                 soup = BeautifulSoup(response.text, 'lxml')
-                list_event_from_soup = all_events = soup.find('div', class_='u-flex u-flex--wrap').find_all('div', class_='ticketscloud-event-item col-md-4')
+                all_events = soup.find('div', class_='u-flex u-flex--wrap')
+                if all_events is not None:
+                    list_event_from_soup = all_events.find_all('div', class_='ticketscloud-event-item col-md-4')
+                else:
+                    list_event_from_soup = list()
             else:
                 list_event_from_soup = list()
 

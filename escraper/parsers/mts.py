@@ -94,7 +94,7 @@ class MTS(BaseParser):
 
         for category in categories:
 
-            category_url = url + '/' + category
+            category_url = url + '/collections/' + category
             scrape_date = date_from
             while scrape_date <= date_to:
                 scrape_url = category_url + f"?date={scrape_date.date()}"
