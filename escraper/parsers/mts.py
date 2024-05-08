@@ -108,7 +108,6 @@ class MTS(BaseParser):
                     if event_id in existed_event_ids: continue
                     events.append(self.get_event(event_url=event_url, tags=tags))
                     existed_event_ids.append(event_id)
-                    print(events[-1])
 
                 scrape_date += timedelta(days=1)
 
@@ -177,7 +176,10 @@ class MTS(BaseParser):
         )
 
     def _url(self, event_json):
-        return 'https://live.mts.ru' + event_json["url"]
+        if self.event_url is not None:
+            return self.event_url
+        else:
+            return 'https://live.mts.ru' + event_json["url"]
 
     def _is_registration_open(self, event_json):
         return event_json["status"] == 'TicketsOnSale'
