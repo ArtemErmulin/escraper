@@ -120,7 +120,10 @@ class Ticketscloud(BaseParser):
         return address
 
     def _category(self, event_soup):
-        return
+        category = None
+        if 'tags' in self.tc_event:
+            category = self.tc_event['tags'][0]
+        return category
 
     def _date_from(self, event_soup):
         return datetime.strptime(self.tc_event['lifetime'].split('\n')[1].strip().split('DATE-TIME:')[-1], self.DATETIME_STRF).astimezone(self.TIMEZONE)
@@ -141,7 +144,6 @@ class Ticketscloud(BaseParser):
         address_name = re.sub('\s+', ' ',
                               event_soup.find('div', class_='event-info-se__address-part').find('address').text.strip())
         return re.sub('Санкт-Петербург, ', '', address_name)
-
 
     def _full_text(self, event_soup) -> str:
         if event_soup.find('article',
