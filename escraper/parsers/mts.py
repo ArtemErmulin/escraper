@@ -8,7 +8,7 @@ from ..emoji import add_emoji
 
 class MTS(BaseParser):
     name = "mts"
-    BASE_URL = "https://live.mts.ru/"
+    BASE_URL = "https://live.mts.ru"
     parser_prefix = "MTS-"
     DATETIME_STRF = "%Y-%m-%dT%H:%M:%S%z"
 
@@ -69,17 +69,17 @@ class MTS(BaseParser):
         """
 
         if "city" in request_params:
-            url = self.url + request_params['city']
+            url = self.url + '/' + request_params['city']
         else:
-            url = self.url + "sankt-peterburg"
+            url = self.url + '/'  + "sankt-peterburg"
 
         if "date_from" in request_params:
-            date_from = datetime.strptime(request_params["date_from"])
+            date_from = datetime.strptime(request_params["date_from"], '%Y-%m-%d')
         else:
             date_from = datetime.today() + timedelta(days=2)
 
         if "date_to" in request_params:
-            date_to = datetime.strptime(request_params["date_to"])
+            date_to = datetime.strptime(request_params["date_to"], '%Y-%m-%d')
         elif "days" in request_params:
             date_to = date_from + timedelta(days=int(request_params['days']))
         else:
@@ -103,7 +103,7 @@ class MTS(BaseParser):
                 event_list_json = json.loads(json_body)["props"]["pageProps"]["initialState"]["Announcements"]["announcementPreviewCollection"]["items"]
 
                 for event_json in event_list_json:
-                    event_url = 'https://live.mts.ru' + event_json['url']
+                    event_url = self.url + event_json['url']
                     event_id = self._id_from_url(event_url)
                     if event_id in existed_event_ids: continue
                     events.append(self.get_event(event_url=event_url, tags=tags))
@@ -154,7 +154,7 @@ class MTS(BaseParser):
     def _full_text(self, event_json) -> str:
         post_text_html = event_json["description"]
         if post_text_html:
-            post_text = self.remove_html_tags(post_text_html.replace("<p>", "\n")).strip()
+            post_text = self.remove_html_tags(post_text_html.replace("<p>", " \n")).strip()
         else:
             post_text = ''
         return post_text
@@ -168,7 +168,10 @@ class MTS(BaseParser):
         return event_json['media'][0]["url"]
 
     def _price(self, event_json):
-        return event_json["eventMinPrice"]
+        if event_json["eventMinPrice"] is not None:
+            return str(event_json["eventMinPrice"]) + '₽'
+        else:
+            return 'на сайте'
 
     def _title(self, event_json):
         return add_emoji(
