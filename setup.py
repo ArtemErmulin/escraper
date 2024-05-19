@@ -6,7 +6,7 @@ with open("requirements.txt") as fp:
 
 setuptools.setup(
     name="escraper",
-    version="1.1.8.5",
+    version="1.1.8.6",
     packages=setuptools.find_packages(),
     install_requires=install_requires,
     include_package_data=True,
