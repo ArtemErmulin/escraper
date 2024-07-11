@@ -5,6 +5,7 @@ from .ticketscloud import Ticketscloud
 from .vk import VK
 from .qtickets import QTickets
 from .mts import MTS
+from .culture import Culture
 
 
 all_parsers = dict(
@@ -13,4 +14,5 @@ all_parsers = dict(
     ticketscloud=Ticketscloud,
     vk=VK,
     mts=MTS,
+    cltr=Culture,
 )
