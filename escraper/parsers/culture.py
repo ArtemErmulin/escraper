@@ -155,7 +155,7 @@ class Culture(BaseParser):
         return f"{self._date_from_.date()} – {self._date_to_.date()}"
 
     def _id(self, event_json):
-        return self.parser_prefix + event_json["_id"]
+        return self.parser_prefix + str(event_json["_id"])
 
     def _place_name(self, event_json):
         return event_json["places"][0]['title'].strip()
