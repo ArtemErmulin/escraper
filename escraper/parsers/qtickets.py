@@ -118,10 +118,14 @@ class QTickets(BaseParser):
                 ).astimezone(self.TIMEZONE)
                 dates.append(date)
                 event_soup = BeautifulSoup(self._request_get(event_url).text, "lxml")
+                if date >= maximum_date and len(dates) > 9:
+                    continue
                 events.append(self.parse(event_soup, tags=tags or ALL_EVENT_TAGS))
             page += 1
 
-            if dates and max(dates)>=maximum_date: break
+            if dates and max(dates) >= maximum_date:
+                break
+
         return events
 
     def _adress(self, event_soup):

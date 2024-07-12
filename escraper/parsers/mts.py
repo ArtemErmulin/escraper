@@ -83,7 +83,7 @@ class MTS(BaseParser):
         elif "days" in request_params:
             date_to = date_from + timedelta(days=int(request_params['days']))
         else:
-            date_to = date_from + timedelta(days=4)
+            date_to = date_from + timedelta(days=5)
 
         if "categories" in request_params:
             categories = request_params["categories"]

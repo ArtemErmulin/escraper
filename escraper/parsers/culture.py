@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 
-import json
+import json, re
 
 from .base import BaseParser, ALL_EVENT_TAGS
 from ..emoji import add_emoji
@@ -90,7 +90,7 @@ class Culture(BaseParser):
         elif "days" in request_params:
             date_to = date_from + timedelta(days=int(request_params['days']))
         else:
-            date_to = date_from + timedelta(days=4)
+            date_to = date_from + timedelta(days=5)
 
         if "categories" in request_params:
             categories = request_params["categories"]
@@ -119,8 +119,9 @@ class Culture(BaseParser):
     def _adress(self, event_json):
         if 'address' in event_json["places"][0] and event_json["places"][0]['address'] is not None:
             full_address = event_json["places"][0]["address"].strip()
-            full_address = full_address.replace("г. Санкт-Петербург, ", "").replace("г Санкт-Петербург, ", "").replace("Санкт-Петербург, ", "")
-            full_address = full_address.replace("Респ. Татарстан, ", "").replace("г. Казань, ", "")
+            # full_address = full_address.replace("г. Санкт-Петербург, ", "").replace("г Санкт-Петербург, ", "").replace("Санкт-Петербург, ", "")
+            # full_address = full_address.replace("Респ. Татарстан, ", "").replace("г. Казань, ", "")
+            full_address = ', '.join(re.split('(^г. )|( г. )', full_address)[-1].split(', ')[1:])
         else:
             full_address = ''
 

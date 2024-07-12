@@ -42,7 +42,7 @@ class VK(BaseParser):
         if event_in_list:
             return self.parse(event_in_list[0], tags=ALL_EVENT_TAGS)
 
-    def get_events(self, request_params=None):
+    def get_events(self, request_params=None, existed_event_ids=[]):
         """
                 Parameters:
                 -----------
@@ -65,7 +65,7 @@ class VK(BaseParser):
                 <list of events from Санкт-Петербург>
             """
 
-        request_params = request_params or {}  # todo: add city_id and quantity to request_params
+        request_params = request_params or {}
         if 'days' in request_params:
             days = request_params['days']
         else:
@@ -87,7 +87,7 @@ class VK(BaseParser):
             if res['count'] < self.quantity: self.quantity = res['count']
             time.sleep(0.5)
 
-        event_ids = self.get_ids(event_data_general)
+        event_ids = self.get_ids(event_data_general, existed_event_ids)
         event_data_full = []
         for event_ids_divided in divide_list(event_ids, 200):
             event_data_full += self.get_full_event(event_ids_divided)
@@ -108,8 +108,8 @@ class VK(BaseParser):
         if 'response' not in events: return {}
         return events['response']
 
-    def get_ids(self, events):
-        return [event['id'] for event in events]
+    def get_ids(self, events, existed_event_ids=[]):
+        return [event['id'] for event in events if self.parser_prefix + event['id'] not in existed_event_ids]
 
     def get_full_event(self, ids):
         if len(ids) < 500:
@@ -119,25 +119,6 @@ class VK(BaseParser):
             if 'response' in response:
                 return response['response']
             return []
-
-        # events = []
-        # limit = 500
-        # count_ids = 0
-        # page = 0
-        # while len(ids)>=count_ids:
-        #     min, max = limit*page, limit*(page+1)
-        #     ids_for_request = ids[min:max]
-        #     count_ids += len(ids_for_request)
-        #     site = f"{self.BASE_URL_API}/groups.getById?group_ids={ids}&fields=addresses,site,description,status,cover,place,start_date,finish_date{self.get_end_str}"
-        #     req = requests.get(site)
-        #     response = req.json()
-        #     if 'response' in response:
-        #         events+=response['response']
-        #     time.sleep(0.5)
-        # return events
-
-
-
 
     def check_events(self, events, days=31):
         bad_events_index = list()
@@ -152,19 +133,6 @@ class VK(BaseParser):
         for i in bad_events_index: events.pop(i)
         return events
 
-    # def add_address_in_loop(self, events):
-    #     for i, event in enumerate(events):
-    #         if "main_address_id" in event['addresses']:
-    #             site = f"{self.BASE_URL_API}/groups.getAddresses?group_id={event['id']}&address_ids={event['addresses']['main_address_id']}&fields=title,address{self.get_end_str}"
-    #             req = requests.get(site)
-    #             addresses = req.json()
-    #             print(addresses)
-    #             if addresses['response']['count']>0:
-    #                 events[i]['addresses']['address'] = addresses['response']['items'][0]['address']
-    #                 events[i]['addresses']['place_name'] = addresses['response']['items'][0]['title']
-    #         time.sleep(0.2)
-    #     return events
-
     def add_address(self, event):
         site = f"{self.BASE_URL_API}/groups.getAddresses?group_id={event['id']}&address_ids={event['addresses']['main_address_id']}&fields=title,address{self.get_end_str}"
         req = requests.get(site)
@@ -177,7 +145,6 @@ class VK(BaseParser):
             event['addresses']['place_name'] = ''
         time.sleep(0.25)
         return event
-
 
     def _adress(self, event):
         if "main_address_id" in event['addresses']:
