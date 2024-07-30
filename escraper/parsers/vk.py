@@ -109,7 +109,7 @@ class VK(BaseParser):
         return events['response']
 
     def get_ids(self, events, existed_event_ids=[]):
-        return [event['id'] for event in events if self.parser_prefix + event['id'] not in existed_event_ids]
+        return [event['id'] for event in events if self.parser_prefix + str(event['id']) not in existed_event_ids]
 
     def get_full_event(self, ids):
         if len(ids) < 500:
