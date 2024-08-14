@@ -128,7 +128,7 @@ class Culture(BaseParser):
         return full_address
 
     def _category(self, event_json):
-        return event_json["organizations"][0]["eipskSourceJson"]["category"]["name"]
+        return '' #event_json["organizations"][0]["eipskSourceJson"]["category"]["name"]
 
     def _date_from(self, event_json):
         today = datetime.today()
