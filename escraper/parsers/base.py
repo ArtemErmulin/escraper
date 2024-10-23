@@ -4,8 +4,8 @@ from datetime import datetime
 from collections import namedtuple
 
 import requests
+import pytz
 from bs4 import BeautifulSoup
-
 
 ALL_EVENT_TAGS = (
     "adress",
@@ -16,6 +16,7 @@ ALL_EVENT_TAGS = (
     "id",
     "place_name",
     "post_text",
+    "full_text",
     "poster_imag",
     "price",
     "title",
@@ -26,6 +27,9 @@ ALL_EVENT_TAGS = (
 
 class BaseParser(ABC):
     MAX_NUMBER_CONNECTION_ATTEMPTS = 3
+    TIMEZONE = pytz.timezone("Europe/Moscow")
+    TIMEZONE_zero = pytz.timezone("Europe/London")
+
 
     @abstractmethod
     def get_event(self):
@@ -68,6 +72,10 @@ class BaseParser(ABC):
         """Event post text"""
 
     @abstractmethod
+    def _full_text(self) -> str:
+        """Event post text"""
+
+    @abstractmethod
     def _poster_imag(self) -> str:
         """Event poster image (may be None)"""
 
@@ -102,7 +110,7 @@ class BaseParser(ABC):
         return DataStorage(**data)
 
     def remove_html_tags(self, data):
-        return BeautifulSoup(data, "html.parser").text
+        return BeautifulSoup(data, "lxml").text
 
     def _request_get(self, *args, **kwargs):
         """
@@ -119,11 +127,13 @@ class BaseParser(ABC):
 
                 if not response.ok:
                     if response.content:
-                        response_status = response.json()["response_status"]
-
+                        try:
+                            response_status = response.json()["response_status"]
+                        except:
+                            response_status = {"error_code": response.status_code, "message": response.reason}
                     else:
                         response_status = dict(
-                            error_code="None",
+                            error_code=response.status_code,
                             message="response content is empty",
                         )
 
@@ -161,5 +171,9 @@ class BaseParser(ABC):
                 else:
                     post_text = post
                     break
-
         return post_text
+
+    def timedelta_with_gmt0(self):
+        now = datetime.today()
+
+        return now.astimezone(self.TIMEZONE).hour - now.astimezone(self.TIMEZONE_zero).hour
