@@ -87,12 +87,11 @@ class Ticketscloud(BaseParser):
                     list_event_from_soup = list()
             else:
                 list_event_from_soup = list()
-
             for event_card in list_event_from_soup:
 
                 self.url = url + event_card.find('a').get('href')
                 time = datetime.strptime(
-                    event_card.find(class_='ticketscloud-event-item__time').text.replace(',', ''), "%d.%m.%Y %H:%M")
+                    event_card.find(class_='ticketscloud-event-item__time').text.replace(',', '').strip(), "%d.%m.%Y %H:%M")
 
                 city = event_card.find('span', class_=None).text
                 if (city != 'Санкт-Петербург' and self.city == 'spb') or time>datetime.now()+timedelta(days=10):
@@ -176,7 +175,6 @@ class Ticketscloud(BaseParser):
 
     def _org_id(self, event_soup):
         return self.tc_event['org']['id']
-
 
     def _is_registration_open(self, event_soup):
         return self.tc_event['tickets_amount_vacant']>0
