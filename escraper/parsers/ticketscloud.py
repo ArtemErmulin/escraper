@@ -125,10 +125,20 @@ class Ticketscloud(BaseParser):
         return category
 
     def _date_from(self, event_soup):
-        return datetime.strptime(self.tc_event['lifetime'].split('\n')[1].strip().split('DATE-TIME:')[-1], self.DATETIME_STRF).astimezone(self.TIMEZONE)
+        try:
+            return datetime.strptime(self.tc_event['lifetime'].split('\n')[1].strip().split('DATE-TIME:')[-1], self.DATETIME_STRF).astimezone(self.TIMEZONE)
+        except ValueError as e:
+            print(f"Error in parsing date: {e}")
+            current_year = datetime.now().year
+            return datetime(current_year, 12, 31).astimezone(self.TIMEZONE)
 
     def _date_to(self, event_soup):
-        return datetime.strptime(self.tc_event['lifetime'].split('\n')[2].strip().split('DATE-TIME:')[-1], self.DATETIME_STRF).astimezone(self.TIMEZONE)
+        try:
+            return datetime.strptime(self.tc_event['lifetime'].split('\n')[2].strip().split('DATE-TIME:')[-1], self.DATETIME_STRF).astimezone(self.TIMEZONE)
+        except ValueError as e:
+            print(f"Error in parsing date: {e}")
+            current_year = datetime.now().year
+            return datetime(current_year, 12, 31).astimezone(self.TIMEZONE)
 
     def _date_from_to(self, event_soup):
         """
