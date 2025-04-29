@@ -99,13 +99,14 @@ class MTS(BaseParser):
             while scrape_date <= date_to:
                 scrape_url = category_url + f"?date={scrape_date.date()}"
                 response = self._request_get(scrape_url)
-                json_body_raw = response.text.split('self.__next_f.push([1,"1a:')[-1].split('</script>')[0]# .split('\n"])')[0]
+                json_body_raw = response.text.split('self.__next_f.push([1,"1b:')[-1].split('</script>')[0]
                 start = json_body_raw.find('{')
                 end = json_body_raw.rfind('}')
+
                 if start != -1 and end != -1 and end > start:
                     json_body_raw = json_body_raw[start:end + 1].replace('\\"', '"')
                 else:
-                    json_body_raw = ''
+                    break
                 json_body = json.loads(json_body_raw)
                 event_list_json = json_body["announcementCollection"]["items"]
 
