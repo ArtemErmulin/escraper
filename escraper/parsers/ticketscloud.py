@@ -90,11 +90,13 @@ class Ticketscloud(BaseParser):
             for event_card in list_event_from_soup:
 
                 self.url = url + event_card.find('a').get('href')
-                time = datetime.strptime(
-                    event_card.find(class_='ticketscloud-event-item__time').text.replace(',', '').strip(), "%d.%m.%Y %H:%M")
+                #datetime_str = event_card.find(class_='ticketscloud-event-item__time').text.replace(',', '').strip()
+                event_datetime_str = event_card.find(class_='ticketscloud-event-item__time')['datetime']
+                event_datetime = datetime.strptime(event_datetime_str, "%Y-%m-%d %H:%M:%S%z")
 
                 city = event_card.find('span', class_=None).text
-                if (city != 'Санкт-Петербург' and self.city == 'spb') or time>datetime.now()+timedelta(days=10):
+                if (city != 'Санкт-Петербург' and self.city == 'spb') or \
+                        event_datetime > datetime.now().astimezone(self.TIMEZONE) + timedelta(days=10):
                     continue
 
                 events.append(self.get_event(event_url=self.url))
