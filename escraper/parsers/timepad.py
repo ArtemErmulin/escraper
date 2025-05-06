@@ -1,8 +1,6 @@
 from datetime import datetime
 import os
-import itertools
 import re
-from pathlib import Path
 
 import pytz
 
@@ -70,7 +68,15 @@ class Timepad(BaseParser):
             raise ValueError("'event_id' or 'event_url' required.")
 
         url = self.events_api + f"/{event_id}"
-        response_json = self._request_get(url, headers=self.headers).json()
+        if 'PROXY' in os.environ:
+            proxy = os.environ.get("PROXY")
+            proxies = {
+                'http':  proxy,
+                'https': proxy,
+            }
+            response_json = self._request_get(url, headers=self.headers, proxies=proxies).json()
+        else:
+            response_json = self._request_get(url, headers=self.headers).json()
 
         if not is_moderated(response_json):
             print("Event is not moderated")
@@ -164,7 +170,16 @@ class Timepad(BaseParser):
         tags = tags or ALL_EVENT_TAGS
 
         url = self.events_api + ".json"
-        res = self._request_get(url, params=request_params, headers=self.headers)
+
+        if 'PROXY' in os.environ:
+            proxy = os.environ.get("PROXY")
+            proxies = {
+                'http':  proxy,
+                'https': proxy,
+            }
+            res = self._request_get(url, params=request_params, headers=self.headers, proxies=proxies)
+        else:
+            res = self._request_get(url, params=request_params, headers=self.headers)
 
         events_data = list()
         if res:
