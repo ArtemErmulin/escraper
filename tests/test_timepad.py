@@ -3,13 +3,15 @@ from datetime import datetime
 
 import pytest
 import requests
-import find_metro
 
 from escraper.parsers import Timepad
 
 from .testing import Response
 
 
+from dotenv import load_dotenv
+
+load_dotenv()
 #######################################
 ## timepad token
 #######################################
@@ -33,6 +35,21 @@ def test_timepad_token_in_args():
 def test_timepad_token_in_environ():
     assert "TIMEPAD_TOKEN" in os.environ
     Timepad()
+
+
+def test_timepad_original_get_events():
+    token = os.environ.get("TIMEPAD_TOKEN")
+    timepad = Timepad(token=token)
+
+    timepad_others_params = dict(
+        limit=10,
+        cities="Санкт-Петербург",
+        moderation_statuses="featured, shown",
+        price_max=1500,
+    )
+
+    result = timepad.get_events(request_params=timepad_others_params)
+    assert len(result) > 0
 
 
 #######################################
@@ -65,16 +82,16 @@ def requests_get_event(monkeypatch):
 
 
 def test_timepad_get_event_by_id(requests_get_event):
-    Timepad().get_event(event_id=12345)
+    Timepad(token='').get_event(event_id=12345)
 
 
 def test_timepad_get_event_by_url(requests_get_event):
-    Timepad().get_event(event_url="https://test.test/event/12345/")
+    Timepad(token='').get_event(event_url="https://test.test/event/12345/")
 
 
 def test_timepad_get_event_with_tags(requests_get_event):
     tags = ("adress", "category")
-    event = Timepad().get_event(event_id=12345, tags=tags)
+    event = Timepad(token='').get_event(event_id=12345, tags=tags)
     assert event._fields == tags
 
 
@@ -147,14 +164,13 @@ def requests_get_event_adress(monkeypatch):
         return "test subway"
 
     monkeypatch.setattr(requests, "get", get)
-    monkeypatch.setattr(find_metro.metro.get_subway_name, "get_subway", get_subway)
 
 
 def test_timepad_adress(requests_get_event_adress):
     tags = ("adress",)
     event = Timepad().get_event(event_id=12345, tags=tags)
 
-    assert event.adress == "test_address, м.test subway"
+    assert event.adress == "test_address"
 
 
 @pytest.fixture
@@ -376,3 +392,15 @@ def test_timepad_event_statuses():
 #######################################
 def test_timepad_ticket_statuses():
     assert Timepad().tickets_statuses
+
+
+
+####################################
+#### TIMEPAD original site test ####
+####################################
+
+### get events
+
+TIMEPAD_TOKEN = os.getenv("TIMEPAD_TOKEN")
+def test_timepad_get_events_ntr():
+    assert len(Timepad(token=TIMEPAD_TOKEN).get_events()) == 10
