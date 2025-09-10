@@ -47,7 +47,7 @@ class Ticketscloud(BaseParser):
 
         return event
 
-    def get_events(self, org_ids=None, tags=None, city='spb'):
+    def get_events(self, org_ids=None, tags=None, city='Санкт-Петербург'):
         """
         Parameters:
         -----------
@@ -94,8 +94,9 @@ class Ticketscloud(BaseParser):
                 event_datetime_str = event_card.find(class_='ticketscloud-event-item__time')['datetime']
                 event_datetime = datetime.strptime(event_datetime_str, "%Y-%m-%d %H:%M:%S%z")
 
-                city = event_card.find('span', class_=None).text
-                if (city != 'Санкт-Петербург' and self.city == 'spb') or \
+                city = event_card.find('span', class_=None).text.strip()
+                # Filter: keep only events in the requested city (if provided)
+                if (self.city and city.lower() != str(self.city).strip().lower()) or \
                         event_datetime > datetime.now().astimezone(self.TIMEZONE) + timedelta(days=10):
                     continue
 
@@ -109,12 +110,13 @@ class Ticketscloud(BaseParser):
         if "онлайн" in full_address.lower():
             address = "Онлайн"
         else:
-            if full_address.find(", Санкт-Петербург") != -1:
-                end_idx = full_address.find(", Санкт-Петербург")
+            target_city = str(getattr(self, 'city', '') or '').strip()
+            if target_city and full_address.find(f", {target_city}") != -1:
+                end_idx = full_address.find(f", {target_city}")
                 address = full_address[:end_idx]
 
-            elif full_address.find("Санкт-Петербург, ") != -1:
-                address = full_address.replace("Санкт-Петербург, ", "")
+            elif target_city and full_address.find(f"{target_city}, ") != -1:
+                address = full_address.replace(f"{target_city}, ", "")
             else:
                 address = full_address
 
@@ -154,7 +156,10 @@ class Ticketscloud(BaseParser):
     def _place_name(self, event_soup):
         address_name = re.sub('\s+', ' ',
                               event_soup.find('div', class_='event-info-se__address-part').find('address').text.strip())
-        return re.sub('Санкт-Петербург, ', '', address_name)
+        target_city = str(getattr(self, 'city', '') or '').strip()
+        if target_city:
+            return re.sub(f'{re.escape(target_city)}, ', '', address_name)
+        return address_name
 
     def _full_text(self, event_soup) -> str:
         if event_soup.find('article',
