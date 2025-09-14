@@ -22,7 +22,12 @@ class MTS(BaseParser):
         body = self._request_get(event_url).text
         json_body = body.split('<script id="__NEXT_DATA__" type="application/json">')[-1].split('</script>')[0]
 
-        event_json = json.loads(json_body)["props"]["pageProps"]["initialState"]["Announcements"]["announcementDetails"]
+        try:
+            event_json = json.loads(json_body)
+        except json.JSONDecodeError:
+            raise ValueError("Can't parse event json from page")
+
+        event_json = event_json["props"]["pageProps"]["initialState"]["Announcements"]["announcementDetails"]
         self.event_url = event_url
         event = self.parse(event_json, tags=tags or ALL_EVENT_TAGS)
         return event
@@ -105,8 +110,11 @@ class MTS(BaseParser):
                 match = pattern.search(response.text)
                 json_body_raw = match.group(0)[:-1].replace('\\"', '"').split('{')[1:]
                 json_body_raw = '{' + '}'.join('{'.join(json_body_raw).split('}')[:-2]) + '}'
+                try:
+                    json_body = json.loads(json_body_raw)
+                except json.JSONDecodeError:
+                    json_body = {}
 
-                json_body = json.loads(json_body_raw)
                 if "items" not in json_body: break
                 event_list_json = json_body["items"]
 
