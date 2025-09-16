@@ -88,7 +88,7 @@ class Timepad(BaseParser):
 
         return event
 
-    def get_events(self, request_params=None, tags=None):
+    def get_events(self, request_params=None, tags=None, existed_event_ids=[]):
         """
         Parameters:
         -----------
@@ -166,6 +166,10 @@ class Timepad(BaseParser):
         request_params = request_params or {}
         if "fields" not in request_params:
             request_params["fields"] = ", ".join(self.FIELDS)
+
+        if existed_event_ids:
+            timepad_existed_event_ids = [event_id.split('-')[-1] for event_id in existed_event_ids]
+            request_params["event_ids_exclude"] = timepad_existed_event_ids
 
         tags = tags or ALL_EVENT_TAGS
 

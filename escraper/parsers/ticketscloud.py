@@ -47,7 +47,7 @@ class Ticketscloud(BaseParser):
 
         return event
 
-    def get_events(self, org_ids=None, tags=None, city='Санкт-Петербург'):
+    def get_events(self, org_ids=None, tags=None, city='Санкт-Петербург', existed_event_ids=[]):
         """
         Parameters:
         -----------
@@ -90,6 +90,11 @@ class Ticketscloud(BaseParser):
             for event_card in list_event_from_soup:
 
                 self.url = url + event_card.find('a').get('href')
+
+                event_id = self._id_from_url(self.url)
+                if event_id in existed_event_ids:
+                    continue
+
                 #datetime_str = event_card.find(class_='ticketscloud-event-item__time').text.replace(',', '').strip()
                 event_datetime_str = event_card.find(class_='ticketscloud-event-item__time')['datetime']
                 event_datetime = datetime.strptime(event_datetime_str, "%Y-%m-%d %H:%M:%S%z")
@@ -101,6 +106,7 @@ class Ticketscloud(BaseParser):
                     continue
 
                 events.append(self.get_event(event_url=self.url))
+                existed_event_ids.append(event_id)
 
         return events
 
@@ -152,6 +158,10 @@ class Ticketscloud(BaseParser):
 
     def _id(self, event_soup):
         return self.parser_prefix + self.tc_event['id']
+
+    def _id_from_url(self, event_url):
+        event_site_id = event_url.split('?')[0].split('/')[-1]
+        return self.parser_prefix + event_site_id
 
     def _place_name(self, event_soup):
         address_name = re.sub('\s+', ' ',

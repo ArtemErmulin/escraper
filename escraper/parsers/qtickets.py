@@ -50,7 +50,7 @@ class QTickets(BaseParser):
 
         return event
 
-    def get_events(self, request_params={}, tags=None):
+    def get_events(self, request_params={}, tags=None, existed_event_ids=[]):
         """
         Parameters:
         -----------
@@ -84,17 +84,18 @@ class QTickets(BaseParser):
         if "city" in request_params:
             self.url = self.url.replace('spb', request_params['city'])
 
+        days = 10
+        if "days" in request_params:
+            days = int(request_params["days"])
+
         if "date_to" in request_params:
             date_to = request_params["date_to"]
             if re.match(r"\d{1,2}-\d{1,2}-\d{1,2}", date_to):
                 maximum_date = datetime.fromisoformat(date_to)
             else:
-                maximum_date = datetime.today() + timedelta(days=10)
-        elif "days" in request_params:
-            days = int(request_params["days"])
-            maximum_date = datetime.today() + timedelta(days=days)
+                maximum_date = datetime.today() + timedelta(days=days)
         else:
-            maximum_date = datetime.today() + timedelta(days=10)
+            maximum_date = datetime.today() + timedelta(days=days)
         maximum_date = maximum_date.astimezone(self.TIMEZONE)
 
         events = list()
@@ -112,15 +113,20 @@ class QTickets(BaseParser):
 
             for event_card in list_event_from_soup:
                 event_url = event_card.find("a")["href"]
+                event_id = self._id_from_url(event_url)
+                if event_id in existed_event_ids:
+                    continue
 
                 date = datetime.fromisoformat(
                     event_card.find("time", {"class":"place"})['datetime']
                 ).astimezone(self.TIMEZONE)
                 dates.append(date)
-                event_soup = BeautifulSoup(self._request_get(event_url).text, "lxml")
                 if date >= maximum_date and len(dates) > 9:
                     continue
+                event_soup = BeautifulSoup(self._request_get(event_url).text, "lxml")
                 events.append(self.parse(event_soup, tags=tags or ALL_EVENT_TAGS))
+                existed_event_ids.append(event_id)
+
             page += 1
 
             if dates and max(dates) >= maximum_date:
@@ -196,14 +202,17 @@ class QTickets(BaseParser):
         """
         return event_soup.find("div", {"class": "event-info"}).find("time").text.strip()
 
-
     def _id(self, event_soup):
         event_url = self._url(event_soup)
         if event_url:
-            event_id = event_url.split('/')[-1].split('-')[0]
+            event_id = self._id_from_url(event_url)
         else:
-            event_id = str(datetime.today()).replace(' ','_')
-        return self.parser_prefix + event_id
+            event_id = self.parser_prefix + str(datetime.today()).replace(' ','_')
+        return event_id
+
+    def _id_from_url(self, event_url):
+        event_site_id = event_url.split('/')[-1].split('-')[0]
+        return self.parser_prefix + event_site_id
 
     def _place_name(self, event_soup):
         return event_soup.find("a", {"class": "place"}).text.strip()
