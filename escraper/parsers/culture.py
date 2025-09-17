@@ -109,7 +109,7 @@ class Culture(BaseParser):
                 event_list_json = json.loads(json_body)["props"]["pageProps"]["events"]["items"]
                 for event_json in event_list_json:
                     event_url = self.EVENT_URL + f"/{event_json['_id']}/{event_json['name']}"
-                    if event_json['_id'] in existed_event_ids: continue
+                    if self.parser_prefix + str(event_json["_id"]) in existed_event_ids: continue
                     events.append(self.get_event(event_url=event_url, tags=tags))
                     existed_event_ids.append(event_json['_id'])
                 scrape_date += timedelta(days=1)
