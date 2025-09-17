@@ -168,7 +168,7 @@ class Timepad(BaseParser):
             request_params["fields"] = ", ".join(self.FIELDS)
 
         if existed_event_ids:
-            timepad_existed_event_ids = [event_id.split('-')[-1] for event_id in existed_event_ids]
+            timepad_existed_event_ids = [int(event_id.split('-')[-1]) for event_id in existed_event_ids]
             request_params["event_ids_exclude"] = timepad_existed_event_ids
 
         tags = tags or ALL_EVENT_TAGS

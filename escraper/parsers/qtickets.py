@@ -123,13 +123,14 @@ class QTickets(BaseParser):
                 dates.append(date)
                 if date >= maximum_date and len(dates) > 9:
                     continue
+
                 event_soup = BeautifulSoup(self._request_get(event_url).text, "lxml")
                 events.append(self.parse(event_soup, tags=tags or ALL_EVENT_TAGS))
                 existed_event_ids.append(event_id)
 
             page += 1
 
-            if dates and max(dates) >= maximum_date:
+            if dates and len(dates) > 30 and max(dates) >= maximum_date:
                 break
 
         return events
@@ -155,7 +156,10 @@ class QTickets(BaseParser):
 
         if re.match(r"\w* \d+ \w+", date_string):
             time_split = date_string.split(',')
-            hour_from, min_from = time_split[-1].strip().split(':')
+            if len(time_split) > 1:
+                hour_from, min_from = time_split[-1].strip().split(':')
+            else:
+                hour_from, min_from = 20, 0
 
             _, day_from, month_name_from = time_split[0].split(' ')
             month_from = int(monthes[month_name_from.strip()])
