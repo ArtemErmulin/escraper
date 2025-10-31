@@ -17,7 +17,7 @@ class Ticketscloud(BaseParser):
     BASE_URL = "https://ticketscloud.org/"
 
     DATETIME_STRF = "%Y%m%dT%H%M%SZ"
-    parser_prefix = "TC-"
+    source = "TC"
     TIMEZONE = pytz.timezone("Europe/Moscow")
 
     def __init__(self):
@@ -158,11 +158,11 @@ class Ticketscloud(BaseParser):
         return re.sub('\s+', ' ', event_soup.find('div', class_='event-info-se__address-part').find('time').text.strip())
 
     def _id(self, event_soup):
-        return self.parser_prefix + self.tc_event['id']
+        return f"{self.source}-{self.tc_event['id']}"
 
     def _id_from_url(self, event_url):
         event_site_id = event_url.split('?')[0].split('/')[-1]
-        return self.parser_prefix + event_site_id
+        return f"{self.source}-{event_site_id}"
 
     def _place_name(self, event_soup):
         address_name = re.sub('\s+', ' ',
@@ -205,6 +205,9 @@ class Ticketscloud(BaseParser):
         if self.TC_TOKEN is None:
             return self._url(event_soup)
         return f"https://ticketscloud.com/v1/widgets/common?token={self.TC_TOKEN}&event={self.tc_event['id']}&org={self._org_id(event_soup)}&vibe_ref={self.TC_VIBE_REF}"
+
+    def _source(self, event_soup) -> str:
+        return self.source
 
     def _org_id(self, event_soup):
         return self.tc_event['org']['id']

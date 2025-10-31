@@ -14,7 +14,7 @@ class VK(BaseParser):
     BASE_URL = 'https://vk.com/'
     BASE_URL_API = "https://api.vk.com/method/"
 
-    parser_prefix = "VK-"
+    source = "VK"
     quantity = 1000
     count_query = 100
 
@@ -109,7 +109,7 @@ class VK(BaseParser):
         return events['response']
 
     def get_ids(self, events, existed_event_ids=[]):
-        return [event['id'] for event in events if self.parser_prefix + str(event['id']) not in existed_event_ids]
+        return [event['id'] for event in events if f"{self.source}-{event['id']}" not in existed_event_ids]
 
     def get_full_event(self, ids):
         if len(ids) < 500:
@@ -170,7 +170,7 @@ class VK(BaseParser):
         return None
 
     def _id(self, event):
-        return self.parser_prefix + str(event["id"])
+        return f"{self.source}-{event['id']}"
 
     def _place_name(self, event):
         if "main_address_id" in event['addresses']:
@@ -214,6 +214,9 @@ class VK(BaseParser):
 
     def _title(self, event):
         return add_emoji(event["name"])
+
+    def _source(self, event) -> str:
+        return self.source
 
     def _is_registration_open(self, event):
         return self._date_from(event) > datetime.today().astimezone(self.TIMEZONE)

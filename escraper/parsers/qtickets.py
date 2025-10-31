@@ -33,7 +33,7 @@ class QTickets(BaseParser):
     name = "qtickets"
     BASE_URL = "https://spb.qtickets.events"
     DATETIME_STRF = "%Y-%m-%d"
-    parser_prefix = "QT-"
+    source = "QT"
 
     def __init__(self):
         self.url = self.BASE_URL
@@ -211,12 +211,12 @@ class QTickets(BaseParser):
         if event_url:
             event_id = self._id_from_url(event_url)
         else:
-            event_id = self.parser_prefix + str(datetime.today()).replace(' ','_')
+            event_id = f"{self.source}-{datetime.today().replace(' ', '_')}"
         return event_id
 
     def _id_from_url(self, event_url):
         event_site_id = event_url.split('/')[-1].split('-')[0]
-        return self.parser_prefix + event_site_id
+        return f"{self.source}-{event_site_id}"
 
     def _place_name(self, event_soup):
         return event_soup.find("a", {"class": "place"}).text.strip()
@@ -249,6 +249,9 @@ class QTickets(BaseParser):
 
     def _url(self, event_soup):
         return event_soup.find("link", {"rel": "canonical"})['href']
+
+    def _source(self, event_soup) -> str:
+        return self.source
 
     def _is_registration_open(self, event_soup):
         return re.match(r"\d+", self._price(event_soup)) is not None

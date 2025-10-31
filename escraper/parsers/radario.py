@@ -11,7 +11,7 @@ class Radario(BaseParser):
     BASE_URL = "https://radario.ru/events/"
     BASE_EVENTS_API = "https://radario.ru/web-api/affiche/events"
     DATETIME_STRF = "%Y-%m-%dT%H:%M:%S.%f%z"
-    parser_prefix = "RADARIO-"
+    source = "RADARIO"
 
     AVAILABLE_CATEGORIES = [
         "concert",
@@ -186,7 +186,7 @@ class Radario(BaseParser):
         return f"{self._date_from_}-#{self._date_to_}"
 
     def _id(self, event_json_data):
-        return self.parser_prefix + str(event_json_data["id"])
+        return f"{self.source}-{event_json_data['id']}"
 
     def _place_name(self, event_json_data):
         return event_json_data["placeTitle"].strip()
@@ -216,10 +216,13 @@ class Radario(BaseParser):
         return add_emoji(event_json_data["title"].strip())
 
     def _url(self, event_json_data):
-        return self.BASE_URL + self._id(event_json_data).replace(self.parser_prefix, "")
+        return self.BASE_URL + event_json_data["id"]
 
     def _is_registration_open(self, event_json_data):
         return event_json_data["ticketCount"] != 0
+
+    def _source(self, event_json_data) -> str:
+        return self.source
 
     def categories_to_id(self, category):
         categories_to_id = {

@@ -27,6 +27,7 @@ ALL_EVENT_TAGS = (
     "title",
     "url",
     "ticket_url",
+    "source",
     "is_registration_open",
 )
 
@@ -35,6 +36,7 @@ class BaseParser(ABC):
     MAX_NUMBER_CONNECTION_ATTEMPTS = 3
     TIMEZONE = pytz.timezone("Europe/Moscow")
     TIMEZONE_zero = pytz.timezone("Europe/London")
+    source = 'OTHER'
 
     @abstractmethod
     def get_event(self):
@@ -100,6 +102,11 @@ class BaseParser(ABC):
     @abstractmethod
     def _title(self) -> str:
         """Event title"""
+
+    @abstractmethod
+    def _source(self) -> str:
+        """Event source"""
+        return self.source
 
     @abstractmethod
     def _is_registration_open(self) -> bool:

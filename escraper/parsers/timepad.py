@@ -31,7 +31,7 @@ class Timepad(BaseParser):
     name = "timepad"
     url = "www.timepad.ru"
     events_api = "https://api.timepad.ru/v1/events"
-    parser_prefix = "TIMEPAD-"
+    source = "TIMEPAD"
     TIMEZONE = pytz.timezone("Europe/Moscow")
     FIELDS = (  # event fields in timepad request parameters
         "name",
@@ -247,7 +247,7 @@ class Timepad(BaseParser):
         return None
 
     def _id(self, event):
-        return self.parser_prefix + str(event["id"])
+        return f"{self.source}-{event['id']}"
 
     def _place_name(self, event):
         return self.remove_html_tags(event["organization"]["name"]).strip()
@@ -309,6 +309,9 @@ class Timepad(BaseParser):
 
     def _url(self, event):
         return event["url"]
+
+    def _source(self, event) -> str:
+        return self.source
 
     def _is_registration_open(self, event):
         return int(event["registration_data"]["is_registration_open"])

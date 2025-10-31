@@ -9,7 +9,7 @@ from ..emoji import add_emoji
 class MTS(BaseParser):
     name = "mts"
     BASE_URL = "https://live.mts.ru"
-    parser_prefix = "MTS-"
+    source = "MTS"
     DATETIME_STRF = "%Y-%m-%dT%H:%M:%S%z"
 
     def __init__(self):
@@ -166,7 +166,7 @@ class MTS(BaseParser):
 
     def _id_from_url(self, event_url):
         event_id = event_url.split('eventId=')[-1].split('&')[0].split('#')[0]
-        return self.parser_prefix + event_id
+        return f"{self.source}-{event_id}"
 
     def _place_name(self, event_json):
         return event_json["venue"]["title"].strip()
@@ -206,6 +206,9 @@ class MTS(BaseParser):
 
     def _ticket_url(self, event_json) -> str:
         return self.ticket_url_template + self._url(event_json)
+
+    def _source(self, event_json) -> str:
+        return self.source
 
     def _is_registration_open(self, event_json):
         return event_json["status"] == 'TicketsOnSale'

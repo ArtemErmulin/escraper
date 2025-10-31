@@ -11,7 +11,7 @@ class Culture(BaseParser):
     BASE_URL = "https://www.culture.ru/afisha"
     EVENT_URL = "https://www.culture.ru/events"
 
-    parser_prefix = "CLTR-"
+    source = "CLTR"
     DATETIME_STRF = "%Y-%m-%dT%H:%M:%S.%fZ"
 
     def __init__(self):
@@ -109,7 +109,7 @@ class Culture(BaseParser):
                 event_list_json = json.loads(json_body)["props"]["pageProps"]["events"]["items"]
                 for event_json in event_list_json:
                     event_url = self.EVENT_URL + f"/{event_json['_id']}/{event_json['name']}"
-                    if self.parser_prefix + str(event_json["_id"]) in existed_event_ids: continue
+                    if f"{self.source}-{event_json['_id']}" in existed_event_ids: continue
                     events.append(self.get_event(event_url=event_url, tags=tags))
                     existed_event_ids.append(event_json['_id'])
                 scrape_date += timedelta(days=1)
@@ -156,7 +156,7 @@ class Culture(BaseParser):
         return f"{self._date_from_.date()} – {self._date_to_.date()}"
 
     def _id(self, event_json):
-        return self.parser_prefix + str(event_json["_id"])
+        return f"{self.source}-{event_json['_id']}"
 
     def _place_name(self, event_json):
         if event_json["places"][0]['title']:
@@ -199,6 +199,9 @@ class Culture(BaseParser):
             return self.event_url
         else:
             return event_json["saleLink"]
+
+    def _source(self, event_json):
+        return self.source
 
     def _is_registration_open(self, event_json):
         return event_json["status"] == 'published'
