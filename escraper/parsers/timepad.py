@@ -382,5 +382,5 @@ class Timepad(BaseParser):
         return self._request_get(url, headers=self.headers).json()["values"]
 
 
-def is_moderated(response_json):
-    return response_json["moderation_status"] != "not_moderated"
+    def is_moderated(response_json):
+        return response_json["moderation_status"] != "not_moderated"

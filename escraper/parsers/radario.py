@@ -216,7 +216,7 @@ class Radario(BaseParser):
         return add_emoji(event_json_data["title"].strip())
 
     def _url(self, event_json_data):
-        return self.BASE_URL + event_json_data["id"]
+        return self.BASE_URL + str(event_json_data["id"])
 
     def _is_registration_open(self, event_json_data):
         return event_json_data["ticketCount"] != 0
