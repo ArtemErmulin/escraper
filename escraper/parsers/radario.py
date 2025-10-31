@@ -221,6 +221,9 @@ class Radario(BaseParser):
     def _is_registration_open(self, event_json_data):
         return event_json_data["ticketCount"] != 0
 
+    def _ticket_url(self, event_json_data):
+        return None
+
     def _source(self, event_json_data) -> str:
         return self.source
 

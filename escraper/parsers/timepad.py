@@ -310,6 +310,9 @@ class Timepad(BaseParser):
     def _url(self, event):
         return event["url"]
 
+    def _ticket_url(self, event):
+        return None
+
     def _source(self, event) -> str:
         return self.source
 

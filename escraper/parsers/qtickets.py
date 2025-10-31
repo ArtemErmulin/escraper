@@ -250,6 +250,9 @@ class QTickets(BaseParser):
     def _url(self, event_soup):
         return event_soup.find("link", {"rel": "canonical"})['href']
 
+    def _ticket_url(self, event_soup):
+        return None
+
     def _source(self, event_soup) -> str:
         return self.source
 

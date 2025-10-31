@@ -200,6 +200,9 @@ class Culture(BaseParser):
         else:
             return event_json["saleLink"]
 
+    def _ticket_url(self, event_json):
+        return None
+
     def _source(self, event_json):
         return self.source
 
