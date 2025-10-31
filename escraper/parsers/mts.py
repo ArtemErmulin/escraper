@@ -1,4 +1,4 @@
-import json
+import json, os
 import re
 from datetime import datetime, timedelta
 
@@ -15,6 +15,7 @@ class MTS(BaseParser):
     def __init__(self):
         self.url = self.BASE_URL
         self.timedelta_hours = self.timedelta_with_gmt0()
+        self.ticket_url_template = os.getenv("MTS_TICKET_URL_TEMPLATE", "")
 
     def get_event(self, event_url=None, tags=None):
         if event_url is None:
@@ -202,6 +203,9 @@ class MTS(BaseParser):
             return self.event_url
         else:
             return 'https://live.mts.ru' + event_json["url"]
+
+    def _ticket_url(self, event_json) -> str:
+        return self.ticket_url_template + self._url(event_json)
 
     def _is_registration_open(self, event_json):
         return event_json["status"] == 'TicketsOnSale'

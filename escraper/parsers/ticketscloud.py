@@ -1,6 +1,5 @@
-import re, json
+import re, json, os
 
-import warnings
 from datetime import datetime, timedelta
 
 import pytz
@@ -23,6 +22,8 @@ class Ticketscloud(BaseParser):
 
     def __init__(self):
         self.url = self.BASE_URL
+        self.TC_TOKEN = os.getenv('TC_TOKEN')
+        self.TC_VIBE_REF = os.getenv('TC_VIBE_REF')
 
     def get_event(self, event_url=None, tags=None):
         if event_url is None:
@@ -199,6 +200,11 @@ class Ticketscloud(BaseParser):
 
     def _url(self, event_soup):
         return self.url
+
+    def _ticket_url(self, event_soup) -> str:
+        if self.TC_TOKEN is None:
+            return self._url(event_soup)
+        return f"https://ticketscloud.com/v1/widgets/common?token={self.TC_TOKEN}&event={self.tc_event['id']}&org={self._org_id(event_soup)}&vibe_ref={self.TC_VIBE_REF}"
 
     def _org_id(self, event_soup):
         return self.tc_event['org']['id']

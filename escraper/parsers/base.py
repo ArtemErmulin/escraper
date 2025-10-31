@@ -8,6 +8,9 @@ from json.decoder import JSONDecodeError
 import requests
 import pytz
 from bs4 import BeautifulSoup
+from dotenv import load_dotenv
+
+load_dotenv()
 
 ALL_EVENT_TAGS = (
     "adress",
@@ -23,6 +26,7 @@ ALL_EVENT_TAGS = (
     "price",
     "title",
     "url",
+    "ticket_url",
     "is_registration_open",
 )
 
@@ -63,6 +67,15 @@ class BaseParser(ABC):
     @abstractmethod
     def _id(self) -> str:
         """PARSER_PREFIX-ID"""
+
+    @abstractmethod
+    def _url(self) -> str:
+        """Event URL"""
+
+    @abstractmethod
+    def _ticket_url(self) -> str:
+        """Event ticket URL (may be None)"""
+        return None
 
     @abstractmethod
     def _place_name(self) -> str:

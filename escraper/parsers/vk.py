@@ -184,8 +184,7 @@ class VK(BaseParser):
         return post_text
 
     def _post_text(self, event):
-        url = f"\nПодробности: {self.BASE_URL}{event['screen_name']}"
-        return self.prepare_post_text(self._full_text(event))+url
+        return self.prepare_post_text(self._full_text(event))
 
     def _poster_imag(self, event):
         if event['cover']['enabled']!=0:
@@ -194,12 +193,21 @@ class VK(BaseParser):
         else:
             return None
 
-    def _url(self,event):
-        if event['site']!='':
-            return event['site']
-        elif 'screen_name' in event:
+    def _url(self, event):
+        if 'screen_name' in event:
             return f"{self.BASE_URL}{event['screen_name']}"
-        return None
+
+        return self._ticket_url(event)
+
+    def _ticket_url(self, event):
+        if event['site'] != '':
+            if event['site'].startswith('http'):
+                return event['site']
+            else:
+                return 'http://' + event['site']
+        else:
+            return None
+
 
     def _price(self, event):
         return "во встрече"
