@@ -168,7 +168,7 @@ class Timepad(BaseParser):
             request_params["fields"] = ", ".join(self.FIELDS)
 
         if existed_event_ids:
-            timepad_existed_event_ids = [int(event_id.split('-')[-1]) for event_id in existed_event_ids]
+            timepad_existed_event_ids = ", ".join([event_id.split('-')[-1] for event_id in existed_event_ids])
             request_params["event_ids_exclude"] = timepad_existed_event_ids
 
         tags = tags or ALL_EVENT_TAGS
@@ -187,6 +187,7 @@ class Timepad(BaseParser):
 
         events_data = list()
         if res:
+            #print(res.json())
             for response_json in res.json()["values"]:
                 if is_moderated(response_json):
                     events_data.append(self.parse(response_json, tags=tags))
@@ -382,5 +383,5 @@ class Timepad(BaseParser):
         return self._request_get(url, headers=self.headers).json()["values"]
 
 
-    def is_moderated(response_json):
-        return response_json["moderation_status"] != "not_moderated"
+def is_moderated(response_json):
+    return response_json["moderation_status"] != "not_moderated"
