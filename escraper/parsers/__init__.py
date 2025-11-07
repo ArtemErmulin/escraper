@@ -6,6 +6,7 @@ from .vk import VK
 from .qtickets import QTickets
 from .mts import MTS
 from .culture import Culture
+from .tripster import Tripster
 
 
 all_parsers = dict(
@@ -15,4 +16,5 @@ all_parsers = dict(
     vk=VK,
     mts=MTS,
     cltr=Culture,
+    tripster=Tripster,
 )
