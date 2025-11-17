@@ -100,11 +100,11 @@ class QTickets(BaseParser):
 
         events = list()
         page = 1
+        dates = list()
         while True:
             url = f"{self.url}/?page={str(page)}"
             response = self._request_get(url)
 
-            dates = list()
             if response:
                 soup = BeautifulSoup(response.text, "lxml")
                 list_event_from_soup = soup.find_all("li", {"class": "item"})
@@ -127,10 +127,9 @@ class QTickets(BaseParser):
                 event_soup = BeautifulSoup(self._request_get(event_url).text, "lxml")
                 events.append(self.parse(event_soup, tags=tags or ALL_EVENT_TAGS))
                 existed_event_ids.append(event_id)
-
             page += 1
 
-            if dates and len(dates) > 30 and max(dates) >= maximum_date:
+            if (dates and len(dates) > 50 and max(dates) >= maximum_date) or (page > 3 and len(events) < 10):
                 break
 
         return events
