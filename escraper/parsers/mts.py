@@ -97,7 +97,6 @@ class MTS(BaseParser):
             categories = ["ribbon", "concerts", "theater", "musicals", "show", "festivals", "exhibitions", "sport"]
 
         events = list()
-
         for category in categories:
 
             category_url = url + '/collections/' + category
@@ -105,6 +104,8 @@ class MTS(BaseParser):
             while scrape_date <= date_to:
                 scrape_url = category_url + f"?date={scrape_date.date()}"
                 response = self._request_get(scrape_url)
+                if not response:
+                    break
 
                 pattern = re.compile(r'announcementCollection\\":\{.*?\<\/script\>', re.DOTALL)
 

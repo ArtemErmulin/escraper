@@ -38,7 +38,7 @@ class Radario(BaseParser):
         event_api_url = f"{self.BASE_EVENTS_API}/{event_id}"
         response = self._request_get(event_api_url)
 
-        if response.status_code != 200:
+        if not response or response.status_code != 200:
             raise ValueError(f"Failed to fetch events. HTTP {response.status_code}: {response.text}")
 
         event_json_data = response.json()

@@ -177,10 +177,22 @@ class BaseParser(ABC):
                     break
 
             except requests.ConnectionError as e:
-                if attempts_count == self.MAX_NUMBER_CONNECTION_ATTEMPTS:
-                    raise e
+                if attempts_count >= self.MAX_NUMBER_CONNECTION_ATTEMPTS:
+                    print("Max connection attempts reached. Break.")
+                    print(e)
+                    response = None
+                    break
                 attempts_count += 1
-                print("Retry connection")
+                print(f"Retry connection. Attempts count: {attempts_count}")
+
+            except requests.Timeout as e:
+                if attempts_count >= self.MAX_NUMBER_CONNECTION_ATTEMPTS:
+                    print("Max connection attempts reached. Break.")
+                    print(e)
+                    response = None
+                    break
+                attempts_count += 1
+                print(f"Retry connection after timeout. Attempts count: {attempts_count}")
 
         return response
 

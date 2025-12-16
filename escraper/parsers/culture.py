@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 
 import json, re
+import time
 
 from .base import BaseParser, ALL_EVENT_TAGS
 from ..emoji import add_emoji
@@ -17,11 +18,21 @@ class Culture(BaseParser):
     def __init__(self):
         self.url = self.BASE_URL
         self.timedelta_hours = self.timedelta_with_gmt0()
+        self.error_count = 0
 
     def get_event(self, event_url=None, tags=None):
         if event_url is None:
              raise ValueError("'event_url' required.")
-        body = self._request_get(event_url).text
+
+        response = None
+        while not response:
+            if self.error_count >= 3:
+                return None
+            self.error_count += 1
+            time.sleep(self.error_count)
+            response = self._request_get(event_url)
+
+        body = response.text
 
         json_body_min = body.split('<script type="application/ld+json">')[-1].split('</script>')[0]
 
@@ -98,20 +109,29 @@ class Culture(BaseParser):
             categories = ['spektakli', 'kontserti', 'vstrechi', 'prazdniki', 'vistavki', 'tags-kultura-onlain']
 
         events = list()
-
         for category in categories:
             category_url = url + '/' + category
             scrape_date = date_from
             while scrape_date <= date_to:
+                if self.error_count >= 10:
+                    break
+
                 scrape_url = category_url + f"/seanceStartDate-{scrape_date.date()}/seanceEndDate-{scrape_date.date()}"
                 response = self._request_get(scrape_url)
+                if not response:
+                    self.error_count += 1
+                    break
+
                 json_body = response.text.split('<script id="__NEXT_DATA__" type="application/json">')[-1].split('</script>')[0]
                 event_list_json = json.loads(json_body)["props"]["pageProps"]["events"]["items"]
                 for event_json in event_list_json:
                     event_url = self.EVENT_URL + f"/{event_json['_id']}/{event_json['name']}"
                     if f"{self.source}-{event_json['_id']}" in existed_event_ids: continue
-                    events.append(self.get_event(event_url=event_url, tags=tags))
-                    existed_event_ids.append(event_json['_id'])
+                    new_event = self.get_event(event_url=event_url, tags=tags)
+                    if new_event:
+                        events.append(new_event)
+                        existed_event_ids.append(event_json['_id'])
+
                 scrape_date += timedelta(days=1)
 
         return events

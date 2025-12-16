@@ -103,9 +103,12 @@ class VK(BaseParser):
 
     def request_events(self, q='%20', city_id=2, count=250, offset=0):
         site = f'{self.BASE_URL_API}/groups.search?q={q}&type=event&future=1&city_id={city_id}&count={count}&offset={offset}{self.get_end_str}'
-        req = requests.get(site)
+        req = self._request_get(site)
+        if not req:
+            return {}
         events = req.json()
-        if 'response' not in events: return {}
+        if 'response' not in events:
+            return {}
         return events['response']
 
     def get_ids(self, events, existed_event_ids=[]):
@@ -114,7 +117,9 @@ class VK(BaseParser):
     def get_full_event(self, ids):
         if len(ids) < 500:
             site = f"{self.BASE_URL_API}/groups.getById?group_ids={ids}&fields=addresses,site,description,status,cover,place,start_date,finish_date{self.get_end_str}"
-            req = requests.get(site)
+            req = self._request_get(site)
+            if not req:
+                return []
             response = req.json()
             if 'response' in response:
                 return response['response']
@@ -135,12 +140,13 @@ class VK(BaseParser):
 
     def add_address(self, event):
         site = f"{self.BASE_URL_API}/groups.getAddresses?group_id={event['id']}&address_ids={event['addresses']['main_address_id']}&fields=title,address{self.get_end_str}"
-        req = requests.get(site)
-        addresses = req.json()
-        if addresses['response']['count'] > 0:
-            event['addresses']['address'] = addresses['response']['items'][0]['address']
-            event['addresses']['place_name'] = addresses['response']['items'][0]['title']
-        else:
+        req = self._request_get(site)
+        if req:
+            addresses = req.json()
+            if addresses['response']['count'] > 0:
+                event['addresses']['address'] = addresses['response']['items'][0]['address']
+                event['addresses']['place_name'] = addresses['response']['items'][0]['title']
+        if "address" not in event.get('addresses'):
             event['addresses']['address'] = ''
             event['addresses']['place_name'] = ''
         time.sleep(0.25)
