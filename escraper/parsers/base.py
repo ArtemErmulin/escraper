@@ -141,17 +141,29 @@ class BaseParser(ABC):
         will catch ConnectionError and retry.
         """
         attempts_count = 0
+        if "timeout" not in kwargs:
+            kwargs["timeout"] = 10
+
+
+        if "headers" not in kwargs:
+            kwargs["headers"] = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+            }
 
         while True:
             try:
                 response = requests.get(*args, **kwargs)
 
                 if not response.ok:
-                    if response.content:
+                    response_content = response.content
+                    if response_content:
                         try:
                             response_status = response.json()["response_status"]
                         except JSONDecodeError:
-                            response_status = {"error_code": response.status_code, "message": "Invalid JSON response"}
+                            response_status = {
+                                "error_code": response.status_code,
+                                "message": f"Invalid JSON response. Response content: {response_content}",
+                            }
                         except Exception as e:
                             response_status = {"error_code": response.status_code, "message": str(e)}
                     else:
@@ -160,9 +172,10 @@ class BaseParser(ABC):
                             message="response content is empty",
                         )
 
-                    warning_msg = "Bad response: {status_code}: {message}.".format(
+                    warning_msg = "Bad response: {status_code}: {message}. Response content: {response_content}".format(
                         status_code=response_status["error_code"],
                         message=response_status["message"],
+                        response_content=response_content
                     )
 
                     if attempts_count == self.MAX_NUMBER_CONNECTION_ATTEMPTS:
