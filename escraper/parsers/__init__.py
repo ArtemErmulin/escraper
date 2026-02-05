@@ -7,6 +7,7 @@ from .qtickets import QTickets
 from .mts import MTS
 from .culture import Culture
 from .tripster import Tripster
+from .tg import Telegram
 
 
 all_parsers = dict(
@@ -17,4 +18,5 @@ all_parsers = dict(
     mts=MTS,
     cltr=Culture,
     tripster=Tripster,
+    tg=Telegram,
 )
