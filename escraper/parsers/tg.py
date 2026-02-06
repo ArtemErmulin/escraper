@@ -343,14 +343,6 @@ class Telegram(BaseParser):
             if match:
                 return match.group(1)
 
-        # Try video preview
-        # video = message.find("i", class_="tgme_widget_message_video_thumb")
-        # if video:
-        #     style = video.get("style", "")
-        #     match = re.search(r"url\(['\"]?(.*?)['\"]?\)", style)
-        #     if match:
-        #         return match.group(1)
-
         return None
 
     def _price(self, message):
@@ -392,7 +384,8 @@ class Telegram(BaseParser):
 
         for link in links:
             href = link.get("href", "")
-            if href.startswith("?"): continue
+            if href.startswith("?") or (self._current_channel in href and 't.me/' in href):
+                continue
             ticket_urls.append(href)
 
 
@@ -410,4 +403,4 @@ class Telegram(BaseParser):
 
     def _is_registration_open(self, message):
         """Registration status - not applicable for Telegram posts."""
-        return False
+        return True
