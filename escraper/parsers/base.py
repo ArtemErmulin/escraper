@@ -1,3 +1,4 @@
+import time
 import warnings
 from abc import ABC, abstractmethod
 from datetime import datetime
@@ -185,6 +186,7 @@ class BaseParser(ABC):
 
                     warnings.warn(warning_msg + "\nRetry", UserWarning)
                     attempts_count += 1
+                    time.sleep(2 ** attempts_count)
 
                 else:
                     break
@@ -196,6 +198,7 @@ class BaseParser(ABC):
                     response = None
                     break
                 attempts_count += 1
+                time.sleep(2 ** attempts_count)
                 print(f"Retry connection. Attempts count: {attempts_count}")
 
             except requests.Timeout as e:
@@ -205,6 +208,7 @@ class BaseParser(ABC):
                     response = None
                     break
                 attempts_count += 1
+                time.sleep(2 ** attempts_count)
                 print(f"Retry connection after timeout. Attempts count: {attempts_count}")
 
         return response
