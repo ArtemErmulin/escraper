@@ -164,6 +164,7 @@ class Timepad(BaseParser):
         <10 events after that starts after "2020-08-11T00:00:00">
         """
         request_params = request_params or {}
+        existed_event_ids = list(existed_event_ids)
         if "fields" not in request_params:
             request_params["fields"] = ", ".join(self.FIELDS)
 

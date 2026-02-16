@@ -73,6 +73,8 @@ class MTS(BaseParser):
         }
         >>> mts.get_events(request_params=request_params)  # doctest: +SKIP
         """
+        request_params = request_params or {}
+        existed_event_ids = list(existed_event_ids)
 
         if "city" in request_params:
             url = self.url + '/' + request_params['city']

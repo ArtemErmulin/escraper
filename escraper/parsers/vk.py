@@ -66,6 +66,7 @@ class VK(BaseParser):
             """
 
         request_params = request_params or {}
+        existed_event_ids = list(existed_event_ids)
         if 'days' in request_params:
             days = request_params['days']
         else:

@@ -80,6 +80,7 @@ class Radario(BaseParser):
         >>> radario.get_events(request_params_general=request_params)  # doctest: +SKIP
         """
         request_params = (request_params or dict())
+        existed_event_ids = list(existed_event_ids)
 
         if "city" in request_params:
             city_id = self.cities_to_id(request_params["city"])

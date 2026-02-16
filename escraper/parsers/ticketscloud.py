@@ -70,6 +70,7 @@ class Ticketscloud(BaseParser):
             "url", "org_id", "poster_imag")
         >>> tcloud.get_events(org_ids=org_ids, tags=tags)  # doctest: +SKIP
         """
+        existed_event_ids = list(existed_event_ids)
         if org_ids is None: org_ids = ORG_IDS
 
         self.city = city

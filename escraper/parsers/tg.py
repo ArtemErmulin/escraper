@@ -113,6 +113,9 @@ class Telegram(BaseParser):
         ... }
         >>> posts = tg.get_events(request_params=request_params)  # doctest: +SKIP
         """
+        request_params = request_params or {}
+        existed_event_ids = list(existed_event_ids)
+
         channels = request_params.get("channels", [])
         if not channels:
             raise ValueError("'channels' parameter is required in request_params")

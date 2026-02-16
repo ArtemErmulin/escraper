@@ -80,6 +80,8 @@ class QTickets(BaseParser):
         }
         >>> qt.get_events(request_params=request_params)  # doctest: +SKIP
         """
+        request_params = request_params or {}
+        existed_event_ids = list(existed_event_ids)
 
         if "city" in request_params:
             self.url = self.url.replace('spb', request_params['city'])
