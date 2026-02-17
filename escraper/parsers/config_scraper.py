@@ -1,10 +1,12 @@
+import hashlib
 import re
 from datetime import datetime
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 from bs4 import BeautifulSoup
 
 from .base import BaseParser, ALL_EVENT_TAGS
+from .utils import detect_category
 from ..emoji import add_emoji
 
 
@@ -13,6 +15,14 @@ MONTHS_RU = {
     "апрел": 4, "апр": 4, "мая": 5, "май": 5, "июн": 6, "июл": 7,
     "август": 8, "авг": 8, "сентябр": 9, "сен": 9, "октябр": 10, "окт": 10,
     "ноябр": 11, "ноя": 11, "декабр": 12, "дек": 12,
+}
+
+TRANSLIT = {
+    "а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "е": "e", "ё": "yo",
+    "ж": "zh", "з": "z", "и": "i", "й": "y", "к": "k", "л": "l", "м": "m",
+    "н": "n", "о": "o", "п": "p", "р": "r", "с": "s", "т": "t", "у": "u",
+    "ф": "f", "х": "kh", "ц": "ts", "ч": "ch", "ш": "sh", "щ": "sch",
+    "ъ": "", "ы": "y", "ь": "", "э": "e", "ю": "yu", "я": "ya",
 }
 
 
@@ -244,26 +254,51 @@ class ConfigScraper(BaseParser):
         return date_from, date_to, None
 
     @staticmethod
+    def _transliterate(text):
+        """Transliterate Cyrillic text to Latin."""
+        result = []
+        for ch in text.lower():
+            result.append(TRANSLIT.get(ch, ch))
+        return "".join(result)
+
+    @staticmethod
     def _slug_from_url(url):
-        """Extract short slug from event URL."""
-        path = url.rstrip("/").split("/")
-        return path[-1] if path else ""
+        """Extract clean slug from event URL (no query params, fragments)."""
+        parsed = urlparse(url)
+        path = parsed.path.rstrip("/").split("/")
+        slug = path[-1] if path else ""
+        slug = re.sub(r'[^\w-]', '', slug)
+        return slug
 
     @staticmethod
-    def _slug_from_title(title):
-        """Generate a short slug from title for ID."""
-        slug = re.sub(r'[^\w\s-]', '', title.lower())
-        slug = re.sub(r'[\s]+', '-', slug.strip())
-        return slug[:50] if slug else "untitled"
+    def _make_short_id(title, max_slug_len=21):
+        """Generate short ID slug from title: first letters of words + hash.
 
-    @staticmethod
-    def _category_from_url(url, base_url=""):
-        """Extract category from URL path like /events/education/chess-club/ → education."""
-        path = url.replace(base_url, "").strip("/")
-        parts = path.split("/")
-        if len(parts) >= 2:
-            return parts[1] if parts[0] == "events" else parts[0]
-        return ""
+        Example: 'Дима Устинов. Music for a really long walk' -> 'du-mfarlw-a1b2'
+        Fits within max_slug_len (default 21 = 30 - len('CFG-XXXX-')).
+        """
+        # Remove emoji and punctuation, keep words
+        clean = re.sub(r'[^\w\s]', ' ', title)
+        words = clean.split()
+        if not words:
+            return hashlib.md5(title.encode()).hexdigest()[:8]
+
+        # First letters of each word, transliterated
+        initials = ""
+        for w in words:
+            letter = ConfigScraper._transliterate(w[0]) if w else ""
+            initials += letter
+
+        # Short hash for uniqueness (from full title)
+        short_hash = hashlib.md5(title.encode()).hexdigest()[:4]
+
+        # Budget: max_slug_len, need '-' + hash (5 chars)
+        budget = max_slug_len - len(short_hash) - 1
+        if budget < 1:
+            return short_hash
+
+        initials = initials[:budget]
+        return f"{initials}-{short_hash}"
 
     def _parse_listing_card(self, card, config):
         """Extract event data from a listing card element."""
@@ -380,6 +415,7 @@ class ConfigScraper(BaseParser):
         soup = BeautifulSoup(response.text, "lxml")
         cards = soup.select(config.get("card_selector", "a.event"))
 
+        listing_slug = self._slug_from_url(listing_url)
         events = []
         seen_ids = set()
         for card in cards:
@@ -389,13 +425,21 @@ class ConfigScraper(BaseParser):
 
             url = card_data["url"]
 
-            # Generate event_id: prefer slug from URL, fallback to title slug
+            # Pre-compute event_id for dedup (same logic as _id)
+            prefix = f"{self.source}-{config['source']}-"
+            max_slug = 30 - len(prefix)
             slug = self._slug_from_url(url)
-            listing_slug = self._slug_from_url(listing_url)
-            if not slug or slug == listing_slug:
-                slug = self._slug_from_title(card_data["title"])
-
-            event_id = f"{self.source}-{config['source']}-{slug}"
+            base_host = urlparse(config.get("base_url", "")).netloc
+            url_host = urlparse(url).netloc
+            if (slug and slug != listing_slug
+                    and url_host == base_host
+                    and len(slug) <= max_slug):
+                event_id = f"{prefix}{slug}"
+            else:
+                title = card_data["title"]
+                if title and not title[0].isalnum():
+                    title = title[2:].strip()
+                event_id = f"{prefix}{self._make_short_id(title, max_slug)}"
             if event_id in existed_event_ids or event_id in seen_ids:
                 continue
             seen_ids.add(event_id)
@@ -419,9 +463,9 @@ class ConfigScraper(BaseParser):
     def _category(self, event_data):
         if event_data.get("category"):
             return event_data["category"]
-        url = event_data.get("url", "")
-        base = self._current_config.get("base_url", "")
-        return self._category_from_url(url, base)
+        title = event_data.get("title", "")
+        text = event_data.get("description", "")
+        return detect_category(title, text)
 
     def _date_from(self, event_data):
         date_str = event_data.get("date_str")
@@ -447,28 +491,46 @@ class ConfigScraper(BaseParser):
         _, date_to, _ = self._parse_date_range(date_str, fmt)
         if date_to:
             return date_to.astimezone(self.TIMEZONE)
-        return None
+        # No explicit end date — use date_from as fallback
+        return self._date_from(event_data)
+
 
     def _date_from_to(self, event_data):
         return event_data.get("date_str")
 
     def _id(self, event_data):
         source = self._current_config.get("source", self.source)
+        prefix = f"{self.source}-{source}-"
+        max_slug = 30 - len(prefix)
+
         url = event_data.get("url", "")
+        base_url = self._current_config.get("base_url", "")
+        base_host = urlparse(base_url).netloc
+        url_host = urlparse(url).netloc
+
         slug = self._slug_from_url(url)
+        listing_slug = self._slug_from_url(
+            base_url + self._current_config.get("listing_url", "/")
+        )
 
-        listing_url = self._current_config.get("base_url", "") + self._current_config.get("listing_url", "/")
-        listing_slug = self._slug_from_url(listing_url)
-        if not slug or slug == listing_slug:
-            slug = self._slug_from_title(event_data.get("title", ""))
+        # Use URL slug only if same domain, unique, and short enough
+        if (slug and slug != listing_slug
+                and url_host == base_host
+                and len(slug) <= max_slug):
+            return f"{prefix}{slug}"
 
-        return f"{self.source}-{source}-{slug}"
+        # Otherwise generate from title
+        title = event_data.get("title", "")
+        # Strip emoji prefix (2 chars: emoji + space)
+        if title and not title[0].isalnum():
+            title = title[2:].strip()
+        return f"{prefix}{self._make_short_id(title, max_slug)}"
 
     def _url(self, event_data):
         return event_data.get("url", "")
 
     def _ticket_url(self, event_data):
-        return None
+        return event_data.get("url", "")
 
     def _place_name(self, event_data):
         return self._current_config.get("default_place", "")
