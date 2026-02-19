@@ -1,6 +1,6 @@
 import hashlib
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from urllib.parse import urljoin, urlparse
 
 from bs4 import BeautifulSoup
@@ -123,6 +123,7 @@ class ConfigScraper(BaseParser):
     def __init__(self):
         self._current_event = {}
         self._current_config = {}
+        self.timedelta_hours = self.timedelta_with_gmt0()
 
     @staticmethod
     def _resolve_config(site):
@@ -471,8 +472,10 @@ class ConfigScraper(BaseParser):
         date_str = event_data.get("date_str")
         fmt = self._current_config.get("date_format", "%d.%m.%Y")
         date_from, _, time_str = self._parse_date_range(date_str, fmt)
+
+        # Default: one week from now
         if date_from is None:
-            return None
+            return (datetime.now() + timedelta(weeks=1)).astimezone(self.TIMEZONE)
 
         # Time from date string (e.g. "21 февраля, 19:00") or from detail page
         time_str = time_str or event_data.get("time", "")
@@ -482,17 +485,18 @@ class ConfigScraper(BaseParser):
                 date_from = date_from.replace(
                     hour=int(match.group(1)), minute=int(match.group(2))
                 )
-
+        date_from = date_from - timedelta(hours=self.timedelta_hours)
         return date_from.astimezone(self.TIMEZONE)
 
     def _date_to(self, event_data):
         date_str = event_data.get("date_str")
         fmt = self._current_config.get("date_format", "%d.%m.%Y")
         _, date_to, _ = self._parse_date_range(date_str, fmt)
+
         if date_to:
             return date_to.astimezone(self.TIMEZONE)
-        # No explicit end date — use date_from as fallback
-        return self._date_from(event_data)
+        # No explicit end date — date_from + 2 hours
+        return self._date_from(event_data) + timedelta(hours=2)
 
 
     def _date_from_to(self, event_data):
