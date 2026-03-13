@@ -6,6 +6,8 @@ from collections import namedtuple
 
 from json.decoder import JSONDecodeError
 
+import os
+
 import requests
 import pytz
 from bs4 import BeautifulSoup
@@ -145,6 +147,9 @@ class BaseParser(ABC):
         if "timeout" not in kwargs:
             kwargs["timeout"] = 10
 
+        if "proxies" not in kwargs and "PROXY" in os.environ:
+            proxy = os.environ["PROXY"]
+            kwargs["proxies"] = {"http": proxy, "https": proxy}
 
         if "headers" not in kwargs:
             kwargs["headers"] = {

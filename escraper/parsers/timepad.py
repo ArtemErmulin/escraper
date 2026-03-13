@@ -68,15 +68,7 @@ class Timepad(BaseParser):
             raise ValueError("'event_id' or 'event_url' required.")
 
         url = self.events_api + f"/{event_id}"
-        if 'PROXY' in os.environ:
-            proxy = os.environ.get("PROXY")
-            proxies = {
-                'http':  proxy,
-                'https': proxy,
-            }
-            response_json = self._request_get(url, headers=self.headers, proxies=proxies).json()
-        else:
-            response_json = self._request_get(url, headers=self.headers).json()
+        response_json = self._request_get(url, headers=self.headers).json()
 
         if not is_moderated(response_json):
             print("Event is not moderated")
@@ -176,15 +168,7 @@ class Timepad(BaseParser):
 
         url = self.events_api + ".json"
 
-        if 'PROXY' in os.environ:
-            proxy = os.environ.get("PROXY")
-            proxies = {
-                'http':  proxy,
-                'https': proxy,
-            }
-            res = self._request_get(url, params=request_params, headers=self.headers, proxies=proxies)
-        else:
-            res = self._request_get(url, params=request_params, headers=self.headers)
+        res = self._request_get(url, params=request_params, headers=self.headers)
 
         events_data = list()
         if res:
