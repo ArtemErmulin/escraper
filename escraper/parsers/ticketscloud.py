@@ -48,12 +48,17 @@ class Ticketscloud(BaseParser):
 
         return event
 
-    def get_events(self, org_ids=None, tags=None, city='Санкт-Петербург', existed_event_ids=[]):
+    def get_events(self, request_params=None, tags=None, existed_event_ids=None):
         """
         Parameters:
         -----------
-        org_ids : list
-            list of all organization for scraping
+        request_params : dict, default None
+            org_ids : list
+                list of all organization for scraping
+            city : str, default 'Санкт-Петербург'
+                city to filter events
+            days : int, default 10
+                max days ahead to include events
 
         tags : list of tags, default all available event tags
             Event tags (title, id, url etc.,
@@ -62,18 +67,15 @@ class Ticketscloud(BaseParser):
         Examples:
         ----------
         >>> tcloud = Ticketscloud()
-        >>> org_ids = ['5dce558174fd6b0bcaa66524', '5e3d551b44d20ecf697408e4', '5e3bec5fea9c82d6958f8551']
-        >>> tags = ("adress",
-            "date_from","date_to","place_name",
-            "post_text","price",
-            "title",
-            "url", "org_id", "poster_imag")
-        >>> tcloud.get_events(org_ids=org_ids, tags=tags)  # doctest: +SKIP
+        >>> params = {"org_ids": ['5dce558174fd6b0bcaa66524', '5e3d551b44d20ecf697408e4']}
+        >>> tcloud.get_events(request_params=params)  # doctest: +SKIP
         """
-        existed_event_ids = list(existed_event_ids)
-        if org_ids is None: org_ids = ORG_IDS
+        request_params = request_params or {}
+        existed_event_ids = list(existed_event_ids) if existed_event_ids else []
 
-        self.city = city
+        org_ids = request_params.get("org_ids", ORG_IDS)
+        days = int(request_params.get("days", 10))
+        self.city = request_params.get("city", "Санкт-Петербург")
         events = list()
 
         for org_id in org_ids:
@@ -104,7 +106,7 @@ class Ticketscloud(BaseParser):
                 city = event_card.find('span', class_=None).text.strip()
                 # Filter: keep only events in the requested city (if provided)
                 if (self.city and city.lower() != str(self.city).strip().lower()) or \
-                        event_datetime > datetime.now().astimezone(self.TIMEZONE) + timedelta(days=10):
+                        event_datetime > datetime.now().astimezone(self.TIMEZONE) + timedelta(days=days):
                     continue
 
                 events.append(self.get_event(event_url=self.url))
