@@ -20,7 +20,8 @@ class Ticketscloud(BaseParser):
     source = "TC"
     TIMEZONE = pytz.timezone("Europe/Moscow")
 
-    def __init__(self):
+    def __init__(self, use_proxy=True):
+        super().__init__(use_proxy=use_proxy)
         self.url = self.BASE_URL
         self.TC_TOKEN = os.getenv('TC_TOKEN')
         self.TC_VIBE_REF = os.getenv('TC_VIBE_REF')

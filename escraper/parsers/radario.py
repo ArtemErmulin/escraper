@@ -24,7 +24,8 @@ class Radario(BaseParser):
         "show",
     ]
 
-    def __init__(self):
+    def __init__(self, use_proxy=True):
+        super().__init__(use_proxy=use_proxy)
         self.url = self.BASE_URL
         self.events_api = self.BASE_EVENTS_API
         self.timedelta_hours = self.timedelta_with_gmt0()

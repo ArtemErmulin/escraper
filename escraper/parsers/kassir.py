@@ -52,7 +52,8 @@ class Kassir(BaseParser):
         "koncert", "teatr", "shou", "festivali", "sport", "detyam",
     ]
 
-    def __init__(self):
+    def __init__(self, use_proxy=True):
+        super().__init__(use_proxy=use_proxy)
         self.event_url = None
 
     def get_event(self, event_url=None, tags=None):

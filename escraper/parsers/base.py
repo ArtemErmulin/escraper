@@ -41,6 +41,9 @@ class BaseParser(ABC):
     TIMEZONE_zero = pytz.timezone("Europe/London")
     source = 'OTHER'
 
+    def __init__(self, use_proxy=True):
+        self.use_proxy = use_proxy
+
     @abstractmethod
     def get_event(self):
         """Get one event by url / event_id"""
@@ -147,7 +150,7 @@ class BaseParser(ABC):
         if "timeout" not in kwargs:
             kwargs["timeout"] = 10
 
-        if "proxies" not in kwargs and "PROXY" in os.environ:
+        if "proxies" not in kwargs and self.use_proxy and "PROXY" in os.environ:
             proxy = os.environ["PROXY"]
             kwargs["proxies"] = {"http": proxy, "https": proxy}
 

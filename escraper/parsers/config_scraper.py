@@ -120,7 +120,8 @@ class ConfigScraper(BaseParser):
     name = "config"
     source = "CFG"
 
-    def __init__(self):
+    def __init__(self, use_proxy=True):
+        super().__init__(use_proxy=use_proxy)
         self._current_event = {}
         self._current_config = {}
         self.timedelta_hours = self.timedelta_with_gmt0()

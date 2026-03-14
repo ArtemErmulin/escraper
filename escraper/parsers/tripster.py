@@ -36,7 +36,8 @@ class Tripster(BaseParser):
 
     DEFAULT_CITY_SLUGS = ["Saint_Petersburg", "Kazan"]
 
-    def __init__(self, token=None, partner_id=None):
+    def __init__(self, token=None, partner_id=None, use_proxy=True):
+        super().__init__(use_proxy=use_proxy)
         if token is None:
             token = os.getenv("TRIPSTER_TOKEN")
         if partner_id is None:

@@ -36,7 +36,8 @@ class Telegram(BaseParser):
     source = "TG"
     DATETIME_STRF = "%Y-%m-%dT%H:%M:%S%z"
 
-    def __init__(self):
+    def __init__(self, use_proxy=True):
+        super().__init__(use_proxy=use_proxy)
         self.url = self.BASE_URL
         self.timedelta_hours = self.timedelta_with_gmt0()
         self._current_post = None

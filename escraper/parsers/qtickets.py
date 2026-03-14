@@ -35,7 +35,8 @@ class QTickets(BaseParser):
     DATETIME_STRF = "%Y-%m-%d"
     source = "QT"
 
-    def __init__(self):
+    def __init__(self, use_proxy=True):
+        super().__init__(use_proxy=use_proxy)
         self.url = self.BASE_URL
         self.timedelta_hours = self.timedelta_with_gmt0()
 

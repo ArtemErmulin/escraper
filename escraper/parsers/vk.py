@@ -18,7 +18,8 @@ class VK(BaseParser):
     quantity = 1000
     count_query = 100
 
-    def __init__(self, token=None):
+    def __init__(self, token=None, use_proxy=True):
+        super().__init__(use_proxy=use_proxy)
         if token is None:
             if "VK_TOKEN" in os.environ:
                 token = os.environ['VK_TOKEN']
