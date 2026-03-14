@@ -9,6 +9,7 @@ from .culture import Culture
 from .tripster import Tripster
 from .tg import Telegram
 from .config_scraper import ConfigScraper
+from .kassir import Kassir
 
 
 all_parsers = dict(
@@ -21,4 +22,5 @@ all_parsers = dict(
     tripster=Tripster,
     tg=Telegram,
     config=ConfigScraper,
+    kassir=Kassir,
 )
