@@ -1,5 +1,7 @@
 import json, os
 import re
+import time
+import warnings
 from datetime import datetime, timedelta
 
 from .base import BaseParser, ALL_EVENT_TAGS
@@ -12,7 +14,8 @@ class MTS(BaseParser):
     source = "MTS"
     DATETIME_STRF = "%Y-%m-%dT%H:%M:%S%z"
 
-    def __init__(self):
+    def __init__(self, use_proxy=True):
+        super().__init__(use_proxy=use_proxy)
         self.url = self.BASE_URL
         self.timedelta_hours = self.timedelta_with_gmt0()
         self.ticket_url_template = os.getenv("MTS_TICKET_URL_TEMPLATE", "")
@@ -126,7 +129,12 @@ class MTS(BaseParser):
                     event_url = self.url + event_json['url']
                     event_id = self._id_from_url(event_url)
                     if event_id in existed_event_ids: continue
-                    events.append(self.get_event(event_url=event_url, tags=tags))
+                    try:
+                        events.append(self.get_event(event_url=event_url, tags=tags))
+                    except (ValueError, KeyError, json.JSONDecodeError) as e:
+                        warnings.warn(f"MTS: skipping event {event_url}: {e}")
+                        time.sleep(2)
+                        continue
                     existed_event_ids.append(event_id)
 
                 scrape_date += timedelta(days=1)
