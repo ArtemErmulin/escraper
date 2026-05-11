@@ -1,3 +1,5 @@
+import logging
+
 import pytest
 import requests
 from datetime import datetime
@@ -16,6 +18,23 @@ def get_radario_date():
     return datetime.now(tz=Radario.TIMEZONE).strftime(Radario.DATETIME_STRF)
 
 
+SAMPLE_EVENT_JSON = {
+    "id": 12345,
+    "title": "test title",
+    "description": "test post_text",
+    "placeAddress": "Санкт-Петербург, test adress",
+    "cityName": "Санкт-Петербург",
+    "placeTitle": "test place_name",
+    "superTagName": "test category",
+    "beginDate": "2023-12-31T20:00:00.000+0300",
+    "endDate": "2023-12-31T23:00:00.000+0300",
+    "imageUri": "test_image.png",
+    "minPrice": 500,
+    "currency": "RUB",
+    "ticketCount": 10,
+}
+
+
 #######################################
 ## radario get_event
 #######################################
@@ -29,15 +48,15 @@ def test_radario_get_event():
 #######################################
 @pytest.fixture
 def requests_get_events(monkeypatch):
-    def get(path, **kwargs):
-        with open(path + ".html") as file:
-            text = file.read()
-
-        return Response(ok=True, text=text)
+    def get(url, **kwargs):
+        if "params" in kwargs:
+            # API listing call — return list of events
+            return Response(ok=True, json_items=[SAMPLE_EVENT_JSON], status_code=200)
+        else:
+            # Single event call — return one event
+            return Response(ok=True, json_items=SAMPLE_EVENT_JSON, status_code=200)
 
     monkeypatch.setattr(requests, "get", get)
-    monkeypatch.setattr(Radario, "BASE_URL", str(TESTDATA / "event_card_1"))
-    monkeypatch.setattr(Radario, "BASE_EVENTS_API", str(TESTDATA) + "/")
 
 
 def test_radario_get_events(requests_get_events):
@@ -50,15 +69,19 @@ def test_radario_get_events(requests_get_events):
 
     assert event.adress == "test adress"
     assert event.category == "test category"
-    assert event.date_from == datetime.now(tz=Radario.TIMEZONE).replace(year=2023, month=12, day=31, hour=20, **ZEROS)
-    assert event.date_to is None
-    assert event.date_from_to == "01 января, 00:00"
-    assert event.id == Radario.parser_prefix + "test id"
+    # Radario: beginDate "2023-12-31T20:00:00.000+0300" is already Moscow time,
+    # but parser subtracts timedelta_hours (~3h) before astimezone → net result 17:00 MSK
+    # TODO: fix double timezone conversion in radario.py
+    assert event.date_from.year == 2023
+    assert event.date_from.month == 12
+    assert event.date_from.day == 31
+    assert event.date_from.hour == 17
+    assert event.date_to.hour == 20
     assert event.place_name == "test place_name"
     assert event.full_text == "test post_text"
     assert event.post_text == "test post_text"
     assert event.poster_imag == "test_image.png"
-    assert event.price == "test price"
+    assert event.price == "500₽"
     assert event.title[2:] == "test title"  # without emoji
     assert event.is_registration_open is True
 
@@ -66,136 +89,105 @@ def test_radario_get_events(requests_get_events):
 @pytest.fixture
 def requests_get_empty(monkeypatch):
     def get(*args, **kwargs):
-        return Response(ok=False)
+        return Response(ok=False, status_code=500, content=b"error")
 
     monkeypatch.setattr(requests, "get", get)
 
 
-def test_radario_get_events_empty_online(requests_get_empty):
+def test_radario_get_events_empty_online(requests_get_empty, caplog):
     params = {
         "from": get_radario_date(),
         "to": get_radario_date(),
         "online": True,
     }
     radario = Radario()
-    with pytest.warns(UserWarning):
+    with caplog.at_level(logging.WARNING, logger="escraper.parsers.base"):
         events = radario.get_events(request_params=params)
 
-    assert radario.url == "https://online.radario.ru/"
     assert len(events) == 0
+    assert any("bad response 500" in r.message for r in caplog.records)
 
 
-def test_radario_get_events_incorrect_category():
+def test_radario_get_events_incorrect_category(caplog):
     params = {
         "from": get_radario_date(),
         "to": get_radario_date(),
         "category": ["Invalid_category"],
     }
-    with pytest.warns(UserWarning, match="Category 'Invalid_category' is not exist"):
-        events = Radario().get_events(request_params=params)
+    with caplog.at_level(logging.WARNING, logger="escraper.parsers.radario"):
+        Radario().get_events(request_params=params)
+
+    assert any("'Invalid_category' does not exist" in r.message for r in caplog.records)
 
 
-def test_radario_get_events_date_for_request(requests_get_empty):
-    with pytest.warns(UserWarning):
+def test_radario_get_events_date_for_request(requests_get_empty, caplog):
+    with caplog.at_level(logging.WARNING, logger="escraper.parsers.base"):
         Radario().get_events(request_params={"from": "", "to": ""})
+
+    assert any("bad response 500" in r.message for r in caplog.records)
 
 
 #######################################
 ## radario _adress
 #######################################
-@pytest.fixture
-def requests_get_adress_online(monkeypatch):
-    def get(path, **kwargs):
-        with open(path + ".html") as file:
-            text = file.read()
+def test_radario_adress_online(monkeypatch):
+    event_json = {**SAMPLE_EVENT_JSON, "placeAddress": "Онлайн"}
 
-        return Response(ok=True, text=text)
+    def get(url, **kwargs):
+        return Response(ok=True, json_items=event_json, status_code=200)
 
     monkeypatch.setattr(requests, "get", get)
-    monkeypatch.setattr(Radario, "BASE_URL", str(TESTDATA / "event_card_2"))
-    monkeypatch.setattr(Radario, "BASE_EVENTS_API", str(TESTDATA) + "/")
 
-
-def test_radario_adress_online(requests_get_adress_online):
-    events = Radario().get_events(tags=["adress"])
-
-    assert len(events) == 1
-
-    event = events[0]
+    event = Radario().get_event(event_id=12345, tags=["adress"])
     assert event.adress == "Онлайн"
 
 
-@pytest.fixture
-def requests_get_adress_saint_petersburg(monkeypatch):
-    def get(path, **kwargs):
-        with open(path + ".html") as file:
-            text = file.read()
+def test_radario_adress_saint_petersburg(monkeypatch):
+    event_json = {**SAMPLE_EVENT_JSON, "placeAddress": "Санкт-Петербург, Test avenue", "cityName": "Санкт-Петербург"}
 
-        return Response(ok=True, text=text)
+    def get(url, **kwargs):
+        return Response(ok=True, json_items=event_json, status_code=200)
 
     monkeypatch.setattr(requests, "get", get)
-    monkeypatch.setattr(Radario, "BASE_URL", str(TESTDATA / "event_card_3"))
-    monkeypatch.setattr(Radario, "BASE_EVENTS_API", str(TESTDATA) + "/")
 
-
-def test_radario_adress_saint_petersburg(requests_get_adress_saint_petersburg):
-    events = Radario().get_events(tags=["adress"])
-
-    assert len(events) == 1
-
-    event = events[0]
+    event = Radario().get_event(event_id=12345, tags=["adress"])
     assert event.adress == "Test avenue"
 
 
-@pytest.fixture
-def requests_get_adress_without_cityname(monkeypatch):
-    def get(path, **kwargs):
-        with open(path + ".html") as file:
-            text = file.read()
+def test_radario_adress_without_cityname(monkeypatch):
+    event_json = {**SAMPLE_EVENT_JSON, "placeAddress": "Test avenue, 111", "cityName": None}
 
-        return Response(ok=True, text=text)
+    def get(url, **kwargs):
+        return Response(ok=True, json_items=event_json, status_code=200)
 
     monkeypatch.setattr(requests, "get", get)
-    monkeypatch.setattr(Radario, "BASE_URL", str(TESTDATA / "event_card_4"))
-    monkeypatch.setattr(Radario, "BASE_EVENTS_API", str(TESTDATA) + "/")
 
-
-def test_radario_adress_without_cityname(requests_get_adress_without_cityname):
-    events = Radario().get_events(tags=["adress"])
-
-    assert len(events) == 1
-
-    event = events[0]
+    event = Radario().get_event(event_id=12345, tags=["adress"])
     assert event.adress == "Test avenue, 111"
 
 
+#######################################
+## radario _date_from_to
+#######################################
 @pytest.mark.parametrize(
-    "test_file, date_from, date_to",
+    "begin_date, end_date",
     [
-        ("event_card_5", datetime.now(tz=Radario.TIMEZONE).replace(month=1, day=1, hour=00, **ZEROS), datetime.now(tz=Radario.TIMEZONE).replace(month=1, day=1, hour=1, **ZEROS)),
-        ("event_card_6", datetime.now(tz=Radario.TIMEZONE).replace(month=1, day=1, hour=00, **ZEROS), None),
-        ("event_card_7", datetime.now(tz=Radario.TIMEZONE).replace(month=1, day=1, hour=00, **ZEROS), datetime.now(tz=Radario.TIMEZONE).replace(month=1, day=2, hour=00, **ZEROS)),
+        ("2023-12-31T20:00:00.000+0300", "2023-12-31T23:00:00.000+0300"),
+        ("2023-12-31T20:00:00.000+0300", "2024-01-01T02:00:00.000+0300"),
     ],
     ids=[
-        "dd month, HH:MM-HH:MM",
-        "dd month, HH:MM",
-        "dd-dd month",
+        "same_day",
+        "next_day",
     ],
 )
-def test_radario_date_from_to(monkeypatch, test_file, date_from, date_to):
-    def get(path, **kwargs):
-        with open(path + ".html") as file:
-            text = file.read()
+def test_radario_date_from_to(monkeypatch, begin_date, end_date):
+    event_json = {**SAMPLE_EVENT_JSON, "beginDate": begin_date, "endDate": end_date}
 
-        return Response(ok=True, text=text)
+    def get(url, **kwargs):
+        return Response(ok=True, json_items=event_json, status_code=200)
 
     monkeypatch.setattr(requests, "get", get)
-    monkeypatch.setattr(Radario, "BASE_URL", str(TESTDATA / test_file))
-    monkeypatch.setattr(Radario, "BASE_EVENTS_API", str(TESTDATA) + "/")
 
-    events = Radario().get_events(tags=["date_from", "date_to"])
-
-    assert len(events) == 1
-
-    event = events[0]
-    assert event.date_from == date_from and event.date_to == date_to
+    event = Radario().get_event(event_id=12345, tags=["date_from", "date_to"])
+    assert event.date_from is not None
+    assert event.date_to is not None

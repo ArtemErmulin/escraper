@@ -1,8 +1,9 @@
+import logging
 import time
-import warnings
 from abc import ABC, abstractmethod
 from datetime import datetime
 from collections import namedtuple
+from urllib.parse import urlsplit
 
 from json.decoder import JSONDecodeError
 
@@ -14,6 +15,18 @@ from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 
 load_dotenv()
+
+logger = logging.getLogger(__name__)
+
+
+def _short_url(url):
+    """Strip query string for compact retry logs. Full URL goes only into final error."""
+    if not url:
+        return url
+    parts = urlsplit(str(url))
+    if not parts.netloc:
+        return url
+    return f"{parts.scheme}://{parts.netloc}{parts.path}"
 
 ALL_EVENT_TAGS = (
     "adress",
@@ -37,6 +50,7 @@ ALL_EVENT_TAGS = (
 
 class BaseParser(ABC):
     MAX_NUMBER_CONNECTION_ATTEMPTS = 3
+    DEFAULT_REQUEST_TIMEOUT = 20
     TIMEZONE = pytz.timezone("Europe/Moscow")
     TIMEZONE_zero = pytz.timezone("Europe/London")
     source = 'OTHER'
@@ -148,7 +162,7 @@ class BaseParser(ABC):
         """
         attempts_count = 0
         if "timeout" not in kwargs:
-            kwargs["timeout"] = 10
+            kwargs["timeout"] = self.DEFAULT_REQUEST_TIMEOUT
 
         if "proxies" not in kwargs and self.use_proxy and "PROXY" in os.environ:
             proxy = os.environ["PROXY"]
@@ -158,6 +172,10 @@ class BaseParser(ABC):
             kwargs["headers"] = {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
             }
+
+        url = args[0] if args else kwargs.get("url")
+        short_url = _short_url(url)
+        max_attempts = self.MAX_NUMBER_CONNECTION_ATTEMPTS
 
         while True:
             try:
@@ -181,18 +199,20 @@ class BaseParser(ABC):
                             message="response content is empty",
                         )
 
-                    warning_msg = "Bad response: {status_code}: {message}. Response content: {response_content}".format(
-                        status_code=response_status["error_code"],
-                        message=response_status["message"],
-                        response_content=response_content
-                    )
-
-                    if attempts_count == self.MAX_NUMBER_CONNECTION_ATTEMPTS:
+                    if attempts_count == max_attempts:
+                        logger.error(
+                            "%s: bad response %s on %s — giving up after %d attempts: %s | full url: %s",
+                            self.source, response_status["error_code"], short_url,
+                            max_attempts, response_status["message"], url,
+                        )
                         response = None
-                        warnings.warn(warning_msg + "\nBreak (event counts 0)", UserWarning)
                         break
 
-                    warnings.warn(warning_msg + "\nRetry", UserWarning)
+                    logger.warning(
+                        "%s: bad response %s on %s — retry %d/%d: %s",
+                        self.source, response_status["error_code"], short_url,
+                        attempts_count + 1, max_attempts, response_status["message"],
+                    )
                     attempts_count += 1
                     time.sleep(2 ** attempts_count)
 
@@ -200,24 +220,34 @@ class BaseParser(ABC):
                     break
 
             except requests.ConnectionError as e:
-                if attempts_count >= self.MAX_NUMBER_CONNECTION_ATTEMPTS:
-                    print("Max connection attempts reached. Break.")
-                    print(e)
+                if attempts_count >= max_attempts:
+                    logger.error(
+                        "%s: connection error on %s — giving up after %d attempts: %s | full url: %s",
+                        self.source, short_url, max_attempts, e, url,
+                    )
                     response = None
                     break
                 attempts_count += 1
                 time.sleep(2 ** attempts_count)
-                print(f"Retry connection. Attempts count: {attempts_count}")
+                logger.warning(
+                    "%s: connection error on %s — retry %d/%d: %s",
+                    self.source, short_url, attempts_count, max_attempts, e,
+                )
 
             except requests.Timeout as e:
-                if attempts_count >= self.MAX_NUMBER_CONNECTION_ATTEMPTS:
-                    print("Max connection attempts reached. Break.")
-                    print(e)
+                if attempts_count >= max_attempts:
+                    logger.error(
+                        "%s: timeout on %s — giving up after %d attempts: %s | full url: %s",
+                        self.source, short_url, max_attempts, e, url,
+                    )
                     response = None
                     break
                 attempts_count += 1
                 time.sleep(2 ** attempts_count)
-                print(f"Retry connection after timeout. Attempts count: {attempts_count}")
+                logger.warning(
+                    "%s: timeout on %s — retry %d/%d: %s",
+                    self.source, short_url, attempts_count, max_attempts, e,
+                )
 
         return response
 

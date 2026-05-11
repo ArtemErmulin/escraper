@@ -1,9 +1,11 @@
+import logging
 import re
-import warnings
 from datetime import datetime, timedelta
 
 from .base import BaseParser, ALL_EVENT_TAGS
 from ..emoji import add_emoji
+
+logger = logging.getLogger(__name__)
 
 
 class Radario(BaseParser):
@@ -138,7 +140,7 @@ class Radario(BaseParser):
                     offset += (limit-1)
 
             else:
-                warnings.warn(f"Category {cat!r} is not exist", UserWarning)
+                logger.warning("RADARIO: category %r does not exist", cat)
 
         return events
 

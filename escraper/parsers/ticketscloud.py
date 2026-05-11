@@ -1,3 +1,4 @@
+import logging
 import re, json, os
 
 from datetime import datetime, timedelta
@@ -7,6 +8,8 @@ from bs4 import BeautifulSoup
 
 from .base import BaseParser, ALL_EVENT_TAGS
 from ..emoji import add_emoji
+
+logger = logging.getLogger(__name__)
 
 ORG_IDS = (
     '5dce558174fd6b0bcaa66524', '5e3d551b44d20ecf697408e4', '5e3bec5fea9c82d6958f8551'
@@ -143,7 +146,7 @@ class Ticketscloud(BaseParser):
         try:
             return datetime.strptime(self.tc_event['lifetime'].split('\n')[1].strip().split('DATE-TIME:')[-1], self.DATETIME_STRF).astimezone(self.TIMEZONE)
         except ValueError as e:
-            print(f"Error in parsing date: {e}")
+            logger.warning("TC: failed to parse date_from for event %s: %s", self.tc_event.get('id'), e)
             current_year = datetime.now().year
             return datetime(current_year, 12, 31).astimezone(self.TIMEZONE)
 
@@ -151,7 +154,7 @@ class Ticketscloud(BaseParser):
         try:
             return datetime.strptime(self.tc_event['lifetime'].split('\n')[2].strip().split('DATE-TIME:')[-1], self.DATETIME_STRF).astimezone(self.TIMEZONE)
         except ValueError as e:
-            print(f"Error in parsing date: {e}")
+            logger.warning("TC: failed to parse date_to for event %s: %s", self.tc_event.get('id'), e)
             current_year = datetime.now().year
             return datetime(current_year, 12, 31).astimezone(self.TIMEZONE)
 
@@ -159,7 +162,7 @@ class Ticketscloud(BaseParser):
         """
         Parse date from and to as string from event page.
         """
-        return re.sub('\s+', ' ', event_soup.find('div', class_='event-info-se__address-part').find('time').text.strip())
+        return re.sub(r'\s+', ' ', event_soup.find('div', class_='event-info-se__address-part').find('time').text.strip())
 
     def _id(self, event_soup):
         return f"{self.source}-{self.tc_event['id']}"
@@ -169,7 +172,7 @@ class Ticketscloud(BaseParser):
         return f"{self.source}-{event_site_id}"
 
     def _place_name(self, event_soup):
-        address_name = re.sub('\s+', ' ',
+        address_name = re.sub(r'\s+', ' ',
                               event_soup.find('div', class_='event-info-se__address-part').find('address').text.strip())
         target_city = str(getattr(self, 'city', '') or '').strip()
         if target_city:
@@ -195,7 +198,7 @@ class Ticketscloud(BaseParser):
             return
 
     def _price(self, event_soup):
-        return re.sub('\s+', ' ', event_soup.find('div', class_='buy-button-se__button').text.strip())
+        return re.sub(r'\s+', ' ', event_soup.find('div', class_='buy-button-se__button').text.strip())
 
     def _title(self, event_soup):
         return add_emoji(

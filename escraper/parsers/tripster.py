@@ -1,10 +1,13 @@
 from datetime import datetime, timedelta
+import logging
 import os
 import re
 import pytz
 
 from .base import BaseParser, ALL_EVENT_TAGS
 from ..emoji import add_emoji
+
+logger = logging.getLogger(__name__)
 
 
 class Tripster(BaseParser):
@@ -134,7 +137,7 @@ class Tripster(BaseParser):
         else:
             res = self._request_get(url, params=request_params, headers=self.headers)
         events = []
-        print(res.json())
+        logger.debug("TRIPSTER: response payload: %s", res.json())
         for obj in res.json().get("results", []):
             #print(obj)
             if obj["status"] == "active" and obj.get("schedule", {}).get("upcoming_events"):  # есть свободные даты

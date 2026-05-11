@@ -44,16 +44,17 @@ def test_mts_get_event(requests_get_event):
 
     assert event.adress == "Невский проспект, дом 35 (улица Садовая, дом 17)"
     assert event.category == "Концерты"
+    # MTS: UTC 16:30 → Moscow 19:30 (UTC+3)
     assert event.date_from == datetime.now(tz=MTS.TIMEZONE).replace(year=2024, month=8, day=9, hour=19, minute=30, **ZEROS)
-    assert event.date_to == datetime.now(tz=MTS.TIMEZONE).replace(year=2024, month=8, day=9, hour=19, minute=30, **ZEROS)
-    #assert event.date_from_to == "01 января, 00:00"
-    assert event.id == MTS.parser_prefix + event_url.split('eventId=')[-1].split('&')[0].split('#')[0]
+    assert event.date_to == datetime.now(tz=MTS.TIMEZONE).replace(year=2024, month=8, day=9, hour=22, minute=30, **ZEROS)
+    assert event.id == MTS.source + "-" + event_url.split('eventId=')[-1].split('&')[0].split('#')[0]
     assert event.place_name == "Двор Гостинки"
     assert event.full_text == "Эти ребята регулярно собирают миллионы просмотров на YouTube. \nПотому что умеют превращать музыку в комедийную сатиру"
     assert event.post_text == "Эти ребята регулярно собирают миллионы просмотров на YouTube. \nПотому что умеют превращать музыку в комедийную сатиру"
     assert event.poster_imag == "https://live.mts.ru/image/full/063ca253-4ff1-6e01-c8a7-4604b102467c.jpg"
     assert event.price == "1500₽"
     assert event.title[2:] == "Концерт группы «Хлеб». Summer Sound x билайн"  # without emoji
+    assert event.url == event_url
     assert event.is_registration_open is True
 
 
@@ -66,9 +67,9 @@ def test_mts_get_event_2(requests_get_event):
     assert event.adress == "Невский проспект, дом 35 (улица Садовая, дом 17)"
     assert event.category == "Концерты"
     assert event.date_from == datetime.now(tz=MTS.TIMEZONE).replace(year=2024, month=8, day=9, hour=19, minute=30, **ZEROS)
-    assert event.date_to == datetime.now(tz=MTS.TIMEZONE).replace(year=2024, month=8, day=9, hour=19, minute=30, **ZEROS)
+    assert event.date_to == datetime.now(tz=MTS.TIMEZONE).replace(year=2024, month=8, day=9, hour=22, minute=30, **ZEROS)
     #assert event.date_from_to == "01 января, 00:00"
-    assert event.id == MTS.parser_prefix + event_url.split('eventId=')[-1].split('&')[0].split('#')[0]
+    assert event.id == MTS.source + "-" + event_url.split('eventId=')[-1].split('&')[0].split('#')[0]
     assert event.place_name == "Двор Гостинки"
     assert event.full_text == "Эти ребята регулярно собирают миллионы просмотров на YouTube. \nПотому что умеют превращать музыку в комедийную сатиру"
     assert event.post_text == "Эти ребята регулярно собирают миллионы просмотров на YouTube. \nПотому что умеют превращать музыку в комедийную сатиру"
@@ -105,9 +106,9 @@ def test_mts_get_events(requests_get_events):
     assert event.category == "Концерты"
     assert event.date_from == datetime.now(tz=MTS.TIMEZONE).replace(year=2024, month=8, day=9, hour=19, minute=30,
                                                                     **ZEROS)
-    assert event.date_to == datetime.now(tz=MTS.TIMEZONE).replace(year=2024, month=8, day=9, hour=19, minute=30,
+    assert event.date_to == datetime.now(tz=MTS.TIMEZONE).replace(year=2024, month=8, day=9, hour=22, minute=30,
                                                                   **ZEROS)
-    assert event.id == MTS.parser_prefix + '111'
+    assert event.id == MTS.source + "-" + '111'
     assert event.place_name == "Двор Гостинки"
     assert event.full_text == "Эти ребята регулярно собирают миллионы просмотров на YouTube. \nПотому что умеют превращать музыку в комедийную сатиру"
     assert event.post_text == "Эти ребята регулярно собирают миллионы просмотров на YouTube. \nПотому что умеют превращать музыку в комедийную сатиру"

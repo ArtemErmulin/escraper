@@ -50,6 +50,21 @@ def test_timepad_original_get_events():
 
     result = timepad.get_events(request_params=timepad_others_params)
     assert len(result) > 0
+    assert len(result) <= 10
+
+def test_timepad_original_get_events_in_other_city():
+    token = os.environ.get("TIMEPAD_TOKEN")
+    timepad = Timepad(token=token)
+
+    timepad_others_params = dict(
+        limit=10,
+        cities="Казань",
+        moderation_statuses="featured, shown",
+        price_max=1500,
+    )
+
+    result = timepad.get_events(request_params=timepad_others_params)
+    assert len(result) > 0
 
 
 #######################################
@@ -230,7 +245,7 @@ def test_timepad_adress_city3(requests_get_event_adress_city3):
     tags = ("adress",)
     event = Timepad().get_event(event_id=12345, tags=tags)
 
-    assert event.adress == "1, 1"
+    assert event.adress == "test"
 
 
 @pytest.fixture
@@ -248,9 +263,9 @@ def requests_get_event_adress_city4(monkeypatch):
 
 def test_timepad_adress_city4(requests_get_event_adress_city4):
     tags = ("adress",)
+    event = Timepad().get_event(event_id=12345, tags=tags)
 
-    with pytest.raises(TypeError):
-        Timepad().get_event(event_id=12345, tags=tags)
+    assert event.adress == "test"
 
 
 #######################################
@@ -274,6 +289,36 @@ def test_timepad_date_to(requests_get_event_date_to):
     event = Timepad().get_event(event_id=12345, tags=tags)
 
     assert isinstance(event.date_to, datetime)
+
+
+@pytest.fixture
+def requests_get_event_dates(monkeypatch):
+    timepad_response_event = dict(
+        moderation_status="moderated",
+        starts_at="2024-06-15T16:00:00+0000",
+        ends_at="2024-06-15T19:00:00+0000",
+    )
+
+    def get(*args, **kwargs):
+        return Response(ok=True, json_items=timepad_response_event)
+
+    monkeypatch.setattr(requests, "get", get)
+
+
+def test_timepad_dates_utc_to_moscow(requests_get_event_dates):
+    """UTC 16:00 → Moscow 19:00 (UTC+3)"""
+    tags = ("date_from", "date_to")
+    event = Timepad().get_event(event_id=12345, tags=tags)
+
+    assert event.date_from.year == 2024
+    assert event.date_from.month == 6
+    assert event.date_from.day == 15
+    assert event.date_from.hour == 19
+    assert event.date_from.minute == 0
+    assert str(event.date_from.tzinfo) == "Europe/Moscow"
+
+    assert event.date_to.hour == 22
+    assert event.date_to.minute == 0
 
 
 #######################################

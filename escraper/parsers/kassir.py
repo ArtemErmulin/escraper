@@ -218,6 +218,10 @@ class Kassir(BaseParser):
     def _date_to(self, event_data):
         date_str = event_data['activity']['dateRange']['endsAt']
         self._date_to_ = _parse_kassir_dt(date_str)
+        if self._date_from_:
+            if self._date_to_ - self._date_from_ > timedelta(days=3):
+                self._date_to_ = self._date_from_ + timedelta(hours=3)
+
         return self._date_to_
 
     def _date_from_to(self, event_data):

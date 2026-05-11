@@ -1,4 +1,5 @@
 from datetime import datetime
+import logging
 import os
 import re
 
@@ -7,6 +8,8 @@ import pytz
 from .base import BaseParser, ALL_EVENT_TAGS
 from .utils import STRPTIME
 from ..emoji import add_emoji
+
+logger = logging.getLogger(__name__)
 
 
 class Timepad(BaseParser):
@@ -72,7 +75,7 @@ class Timepad(BaseParser):
         response_json = self._request_get(url, headers=self.headers).json()
 
         if not is_moderated(response_json):
-            print("Event is not moderated")
+            logger.info("TIMEPAD: event %s is not moderated, skipping", event_id)
             event = None
 
         else:

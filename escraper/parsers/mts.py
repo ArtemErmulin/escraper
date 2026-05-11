@@ -1,11 +1,13 @@
 import json, os
+import logging
 import re
 import time
-import warnings
 from datetime import datetime, timedelta
 
 from .base import BaseParser, ALL_EVENT_TAGS
 from ..emoji import add_emoji
+
+logger = logging.getLogger(__name__)
 
 
 class MTS(BaseParser):
@@ -132,7 +134,7 @@ class MTS(BaseParser):
                     try:
                         events.append(self.get_event(event_url=event_url, tags=tags))
                     except (ValueError, KeyError, json.JSONDecodeError) as e:
-                        warnings.warn(f"MTS: skipping event {event_url}: {e}")
+                        logger.warning("MTS: skipping event %s: %s", event_url, e)
                         time.sleep(2)
                         continue
                     existed_event_ids.append(event_id)
