@@ -37,6 +37,7 @@ class QTickets(BaseParser):
     BASE_URL = "https://spb.qtickets.events"
     DATETIME_STRF = "%Y-%m-%d"
     source = "QT"
+    REQUEST_DELAY = 1.0
 
     def __init__(self, use_proxy=True):
         super().__init__(use_proxy=use_proxy)

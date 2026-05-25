@@ -53,10 +53,14 @@ class BaseParser(ABC):
     DEFAULT_REQUEST_TIMEOUT = 20
     TIMEZONE = pytz.timezone("Europe/Moscow")
     TIMEZONE_zero = pytz.timezone("Europe/London")
+    # Minimum seconds between two successful _request_get calls on the same instance.
+    # Subclasses can override (raise for fragile sources, set to 0 to disable).
+    REQUEST_DELAY = 0.5
     source = 'OTHER'
 
     def __init__(self, use_proxy=True):
         self.use_proxy = use_proxy
+        self._last_request_time = 0.0
 
     @abstractmethod
     def get_event(self):
@@ -177,9 +181,16 @@ class BaseParser(ABC):
         short_url = _short_url(url)
         max_attempts = self.MAX_NUMBER_CONNECTION_ATTEMPTS
 
+        if self.REQUEST_DELAY:
+            elapsed = time.monotonic() - self._last_request_time
+            wait = self.REQUEST_DELAY - elapsed
+            if wait > 0:
+                time.sleep(wait)
+
         while True:
             try:
                 response = requests.get(*args, **kwargs)
+                self._last_request_time = time.monotonic()
 
                 if not response.ok:
                     response_content = response.content
