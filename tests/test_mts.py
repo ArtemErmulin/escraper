@@ -10,7 +10,7 @@ from .testing import Response
 
 TESTDATA = Path(__file__).parent / "test_data" / "test_mts"
 ZEROS = dict(second=00, microsecond=00)
-
+#["ribbon", "concerts", "theater", "musicals", "show", "exhibitions", "sport"]
 
 def get_mts_date():
     return datetime.now(tz=MTS.TIMEZONE).strftime(MTS.DATETIME_STRF)
