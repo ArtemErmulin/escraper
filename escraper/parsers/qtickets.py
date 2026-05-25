@@ -1,3 +1,4 @@
+import logging
 import re
 import requests
 import warnings
@@ -8,6 +9,8 @@ from bs4 import BeautifulSoup
 
 from .base import BaseParser, ALL_EVENT_TAGS
 from ..emoji import add_emoji
+
+logger = logging.getLogger(__name__)
 
 
 monthes = {
@@ -91,28 +94,50 @@ class QTickets(BaseParser):
         if "days" in request_params:
             days = int(request_params["days"])
 
+        now = datetime.now(tz=self.TIMEZONE)
+        if "date_from" in request_params:
+            date_from = datetime.fromisoformat(request_params["date_from"]).astimezone(self.TIMEZONE)
+        else:
+            date_from = now
+
         if "date_to" in request_params:
-            date_to = request_params["date_to"]
-            if re.match(r"\d{1,2}-\d{1,2}-\d{1,2}", date_to):
-                maximum_date = datetime.fromisoformat(date_to)
+            date_to_raw = request_params["date_to"]
+            if re.match(r"\d{1,2}-\d{1,2}-\d{1,2}", date_to_raw):
+                maximum_date = datetime.fromisoformat(date_to_raw)
             else:
                 maximum_date = datetime.today() + timedelta(days=days)
         else:
             maximum_date = datetime.today() + timedelta(days=days)
         maximum_date = maximum_date.astimezone(self.TIMEZONE)
 
+        # qtickets listing pages are NOT sorted chronologically — events spanning months
+        # appear mixed on every page. Scan every page (cheap listing fetch), then only
+        # fetch the per-event detail page for events that fall inside the date window.
+        # Stop when we hit MAX_EMPTY_PAGES in a row with no items (end of pagination) or
+        # MAX_PAGES as a hard safety cap. Throttling between requests is handled by
+        # BaseParser.REQUEST_DELAY.
+        MAX_EMPTY_PAGES = 2
+        MAX_PAGES = 200
+
         events = list()
+        empty_streak = 0
         page = 1
-        dates = list()
-        while True:
+        while page <= MAX_PAGES:
             url = f"{self.url}/?page={str(page)}"
             response = self._request_get(url)
 
+            list_event_from_soup = []
             if response:
                 soup = BeautifulSoup(response.text, "lxml")
                 list_event_from_soup = soup.find_all("li", {"class": "item"})
-            else:
-                list_event_from_soup = list()
+
+            if not list_event_from_soup:
+                empty_streak += 1
+                if empty_streak >= MAX_EMPTY_PAGES:
+                    break
+                page += 1
+                continue
+            empty_streak = 0
 
             for event_card in list_event_from_soup:
                 event_url = event_card.find("a")["href"]
@@ -120,20 +145,23 @@ class QTickets(BaseParser):
                 if event_id in existed_event_ids:
                     continue
 
-                date = datetime.fromisoformat(
-                    event_card.find("time", {"class":"place"})['datetime']
-                ).astimezone(self.TIMEZONE)
-                dates.append(date)
-                if date >= maximum_date and len(dates) > 9:
+                time_el = event_card.find("time", {"class": "place"})
+                if time_el is None or not time_el.get("datetime"):
+                    logger.debug("QT: skipping card without datetime on page %d", page)
+                    continue
+                date = datetime.fromisoformat(time_el["datetime"]).astimezone(self.TIMEZONE)
+
+                if date < date_from or date > maximum_date:
                     continue
 
-                event_soup = BeautifulSoup(self._request_get(event_url).text, "lxml")
-                events.append(self.parse(event_soup, tags=tags or ALL_EVENT_TAGS))
-                existed_event_ids.append(event_id)
+                try:
+                    event_soup = BeautifulSoup(self._request_get(event_url).text, "lxml")
+                    events.append(self.parse(event_soup, tags=tags or ALL_EVENT_TAGS))
+                    existed_event_ids.append(event_id)
+                except (AttributeError, KeyError, ValueError) as e:
+                    logger.warning("QT: skipping event %s: %s", event_url, e)
+                    continue
             page += 1
-
-            if (dates and len(dates) > 50 and max(dates) >= maximum_date) or (page > 3 and len(events) < 10):
-                break
 
         return events
 
