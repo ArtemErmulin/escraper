@@ -114,18 +114,13 @@ class MTS(BaseParser):
                 if not response:
                     break
 
-                pattern = re.compile(r'announcementCollection\\":\{.*?\<\/script\>', re.DOTALL)
+                json_body = self._extract_announcement_collection(response.text)
+                if json_body is None:
+                    logger.warning("MTS: announcementCollection not found on %s", scrape_url)
+                    scrape_date += timedelta(days=1)
+                    continue
 
-                match = pattern.search(response.text)
-                json_body_raw = match.group(0)[:-1].replace('\\"', '"').split('{')[1:]
-                json_body_raw = '{' + '}'.join('{'.join(json_body_raw).split('}')[:-2]) + '}'
-                try:
-                    json_body = json.loads(json_body_raw)
-                except json.JSONDecodeError:
-                    json_body = {}
-
-                if "items" not in json_body: break
-                event_list_json = json_body["items"]
+                event_list_json = json_body.get("items") or []
 
                 for event_json in event_list_json:
                     event_url = self.url + event_json['url']
@@ -142,6 +137,82 @@ class MTS(BaseParser):
                 scrape_date += timedelta(days=1)
 
         return events
+
+    def _extract_announcement_collection(self, page_text):
+        """Locate and decode the announcementCollection JSON from MTS Next.js RSC payload.
+
+        MTS embeds the page data inside multiple <script>self.__next_f.push([N,"..."])</script>
+        blocks. The content of each push is a JS-string-encoded chunk of the RSC stream; a
+        single logical JSON object (such as announcementCollection) is frequently split across
+        several chunks. We concatenate all push payloads, decode their JS-string escapes, then
+        brace-balance the first announcementCollection object that contains an ``items`` field.
+        """
+        push_re = re.compile(r'self\.__next_f\.push\(\[\s*\d+\s*,\s*"((?:\\.|[^"\\])*)"\s*\]\)', re.DOTALL)
+        chunks = []
+        for m in push_re.finditer(page_text):
+            try:
+                chunks.append(json.loads('"' + m.group(1) + '"'))
+            except json.JSONDecodeError:
+                continue
+
+        if chunks:
+            combined = ''.join(chunks)
+        else:
+            # Fallback: treat the page itself as a single already-decoded stream.
+            # This keeps the parser working for simpler/inline fixtures or future formats.
+            combined = page_text.replace('\\"', '"')
+
+        marker = '"announcementCollection":'
+        pos = 0
+        while True:
+            idx = combined.find(marker, pos)
+            if idx == -1:
+                return None
+            start = combined.find('{', idx + len(marker))
+            if start == -1:
+                return None
+
+            block = self._balanced_json_object(combined, start)
+            pos = idx + len(marker)
+            if block is None:
+                continue
+            try:
+                obj = json.loads(block)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(obj, dict) and 'items' in obj:
+                return obj
+
+    @staticmethod
+    def _balanced_json_object(text, start):
+        """Return text[start:end+1] where text[start] == '{' and braces are balanced.
+
+        Tracks JSON string state so braces inside strings don't affect depth. Returns
+        None if no balanced object is found before the end of ``text``.
+        """
+        depth = 0
+        in_string = False
+        i = start
+        n = len(text)
+        while i < n:
+            c = text[i]
+            if in_string:
+                if c == '\\' and i + 1 < n:
+                    i += 2
+                    continue
+                if c == '"':
+                    in_string = False
+            else:
+                if c == '"':
+                    in_string = True
+                elif c == '{':
+                    depth += 1
+                elif c == '}':
+                    depth -= 1
+                    if depth == 0:
+                        return text[start:i + 1]
+            i += 1
+        return None
 
 
     def _adress(self, event_json):
