@@ -15,7 +15,8 @@ class MTS(BaseParser):
     BASE_URL = "https://live.mts.ru"
     source = "MTS"
     DATETIME_STRF = "%Y-%m-%dT%H:%M:%S%z"
-    REQUEST_DELAY = 1.0
+    REQUEST_DELAY = 0.5
+    DEFAULT_REQUEST_TIMEOUT = 40
 
     def __init__(self, use_proxy=True):
         super().__init__(use_proxy=use_proxy)

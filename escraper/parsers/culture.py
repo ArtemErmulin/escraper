@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timedelta
 
 import json, re
@@ -5,6 +6,8 @@ import time
 
 from .base import BaseParser, ALL_EVENT_TAGS
 from ..emoji import add_emoji
+
+logger = logging.getLogger(__name__)
 
 
 class Culture(BaseParser):
@@ -14,38 +17,43 @@ class Culture(BaseParser):
 
     source = "CLTR"
     DATETIME_STRF = "%Y-%m-%dT%H:%M:%S.%fZ"
+    REQUEST_DELAY = 1.0
+    MAX_FAILURES = 10
 
     def __init__(self, use_proxy=True):
         super().__init__(use_proxy=use_proxy)
         self.url = self.BASE_URL
         self.timedelta_hours = self.timedelta_with_gmt0()
-        self.error_count = 0
 
     def get_event(self, event_url=None, tags=None):
         if event_url is None:
              raise ValueError("'event_url' required.")
 
-        response = None
-        while not response:
-            if self.error_count >= 3:
-                return None
-            self.error_count += 1
-            time.sleep(self.error_count)
-            response = self._request_get(event_url)
+        response = self._request_get(event_url)
+        if not response:
+            logger.warning("CLTR: get_event failed for %s", event_url)
+            return None
 
         body = response.text
 
         json_body_min = body.split('<script type="application/ld+json">')[-1].split('</script>')[0]
 
         self._poster_imag_ = None
-        self._poster_imag(json.loads(json_body_min))
+        try:
+            self._poster_imag(json.loads(json_body_min))
+        except (json.JSONDecodeError, KeyError, IndexError):
+            self._poster_imag_ = ''
 
         json_body = body.split('<script id="__NEXT_DATA__" type="application/json">')[-1].split('</script>')[0]
 
-        event_json = json.loads(json_body)["props"]["pageProps"]["event"]
+        try:
+            event_json = json.loads(json_body)["props"]["pageProps"]["event"]
+        except (json.JSONDecodeError, KeyError) as e:
+            logger.warning("CLTR: cannot parse event JSON from %s: %s", event_url, e)
+            return None
+
         self.event_url = event_url
-        event = self.parse(event_json, tags=tags or ALL_EVENT_TAGS)
-        return event
+        return self.parse(event_json, tags=tags or ALL_EVENT_TAGS)
 
     def get_events(self, request_params={}, tags=None, existed_event_ids=[]):
         """
@@ -111,29 +119,62 @@ class Culture(BaseParser):
         else:
             categories = ['spektakli', 'kontserti', 'vstrechi', 'prazdniki', 'vistavki', 'tags-kultura-onlain']
 
+        failure_count = 0
+
+        def _tripped():
+            if failure_count >= self.MAX_FAILURES:
+                logger.error(
+                    "CLTR: %d failures hit (>= MAX_FAILURES=%d) — aborting run, collected %d events so far",
+                    failure_count, self.MAX_FAILURES, len(events),
+                )
+                return True
+            return False
+
         events = list()
         for category in categories:
+            if _tripped():
+                return events
             category_url = url + '/' + category
             scrape_date = date_from
             while scrape_date <= date_to:
-                if self.error_count >= 10:
-                    break
+                if _tripped():
+                    return events
 
                 scrape_url = category_url + f"/seanceStartDate-{scrape_date.date()}/seanceEndDate-{scrape_date.date()}"
                 response = self._request_get(scrape_url)
                 if not response:
-                    self.error_count += 1
-                    break
+                    failure_count += 1
+                    logger.warning("CLTR: listing fetch failed for %s (failures: %d/%d)", scrape_url, failure_count, self.MAX_FAILURES)
+                    scrape_date += timedelta(days=1)
+                    continue
 
                 json_body = response.text.split('<script id="__NEXT_DATA__" type="application/json">')[-1].split('</script>')[0]
-                event_list_json = json.loads(json_body)["props"]["pageProps"]["events"]["items"]
+                try:
+                    event_list_json = json.loads(json_body)["props"]["pageProps"]["events"]["items"]
+                except (json.JSONDecodeError, KeyError) as e:
+                    failure_count += 1
+                    logger.warning("CLTR: cannot parse listing JSON for %s: %s (failures: %d/%d)", scrape_url, e, failure_count, self.MAX_FAILURES)
+                    scrape_date += timedelta(days=1)
+                    continue
+
                 for event_json in event_list_json:
+                    if _tripped():
+                        return events
+                    event_id = f"{self.source}-{event_json['_id']}"
+                    if event_id in existed_event_ids: continue
                     event_url = self.EVENT_URL + f"/{event_json['_id']}/{event_json['name']}"
-                    if f"{self.source}-{event_json['_id']}" in existed_event_ids: continue
-                    new_event = self.get_event(event_url=event_url, tags=tags)
-                    if new_event:
-                        events.append(new_event)
-                        existed_event_ids.append(event_json['_id'])
+                    try:
+                        new_event = self.get_event(event_url=event_url, tags=tags)
+                    except (KeyError, ValueError, json.JSONDecodeError) as e:
+                        failure_count += 1
+                        logger.warning("CLTR: skipping event %s: %s (failures: %d/%d)", event_url, e, failure_count, self.MAX_FAILURES)
+                        continue
+                    if new_event is None:
+                        failure_count += 1
+                        logger.warning("CLTR: get_event returned None for %s (failures: %d/%d)", event_url, failure_count, self.MAX_FAILURES)
+                        continue
+                    events.append(new_event)
+                    existed_event_ids.append(event_id)
 
                 scrape_date += timedelta(days=1)
 

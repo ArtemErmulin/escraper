@@ -47,6 +47,7 @@ class Kassir(BaseParser):
     BASE_URL = "https://spb.kassir.ru"
     API_BASE = "https://api.kassir.ru/api"
     source = "KASSIR"
+    REQUEST_DELAY = 1.0
 
     DEFAULT_CATEGORIES = [
         "koncert", "teatr", "shou", "festivali", "sport", "detyam",
