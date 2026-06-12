@@ -3,6 +3,7 @@ import time
 from abc import ABC, abstractmethod
 from datetime import datetime
 from collections import namedtuple
+from typing import Iterator
 from urllib.parse import urlsplit
 
 from json.decoder import JSONDecodeError
@@ -67,8 +68,13 @@ class BaseParser(ABC):
         """Get one event by url / event_id"""
 
     @abstractmethod
-    def get_events(self) -> list:
-        """Get events by request parameters (date from-to, keywords etc.)"""
+    def get_events(self) -> Iterator:
+        """Get events by request parameters (date from-to, keywords etc.).
+
+        Implementations are generators: they yield parsed events one at a time
+        as they are scraped, so a consumer can process partial results even if
+        scraping later fails mid-way. Wrap in ``list(...)`` if you need a list.
+        """
 
     @abstractmethod
     def _adress(self) -> str:

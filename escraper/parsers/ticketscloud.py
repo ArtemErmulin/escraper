@@ -80,7 +80,6 @@ class Ticketscloud(BaseParser):
         org_ids = request_params.get("org_ids", ORG_IDS)
         days = int(request_params.get("days", 10))
         self.city = request_params.get("city", "Санкт-Петербург")
-        events = list()
 
         for org_id in org_ids:
             url = f"https://{org_id}.ticketscloud.org"
@@ -113,10 +112,9 @@ class Ticketscloud(BaseParser):
                         event_datetime > datetime.now().astimezone(self.TIMEZONE) + timedelta(days=days):
                     continue
 
-                events.append(self.get_event(event_url=self.url))
+                event = self.get_event(event_url=self.url)
                 existed_event_ids.append(event_id)
-
-        return events
+                yield event
 
     def _adress(self, event_soup):
         if not 'address' in self.tc_event['venue']: return

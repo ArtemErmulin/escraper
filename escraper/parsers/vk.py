@@ -43,7 +43,7 @@ class VK(BaseParser):
         if event_in_list:
             return self.parse(event_in_list[0], tags=ALL_EVENT_TAGS)
 
-    def get_events(self, request_params=None, existed_event_ids=[]):
+    def get_events(self, request_params=None, existed_event_ids=None):
         """
                 Parameters:
                 -----------
@@ -62,12 +62,14 @@ class VK(BaseParser):
 
                 Select by city:
                 >>> params = dict(days=15)
-                >>> vk.get_events(request_params=params)
+                >>> list(vk.get_events(request_params=params))
                 <list of events from Санкт-Петербург>
+
+                Yields parsed events one at a time per id-chunk (generator).
             """
 
         request_params = request_params or {}
-        existed_event_ids = list(existed_event_ids)
+        existed_event_ids = list(existed_event_ids) if existed_event_ids else []
         if 'days' in request_params:
             days = request_params['days']
         else:
@@ -90,18 +92,11 @@ class VK(BaseParser):
             time.sleep(0.5)
 
         event_ids = self.get_ids(event_data_general, existed_event_ids)
-        event_data_full = []
         for event_ids_divided in divide_list(event_ids, 200):
-            event_data_full += self.get_full_event(event_ids_divided)
+            chunk = self.get_full_event(event_ids_divided)
+            for event in self.check_events(chunk, days):
+                yield self.parse(event, tags=ALL_EVENT_TAGS)
             time.sleep(0.5)
-
-        event_data_full = self.check_events(event_data_full, days)
-
-        events = list()
-        for event in event_data_full:
-            events.append(self.parse(event, tags=ALL_EVENT_TAGS))
-
-        return events
 
     def request_events(self, q='%20', city_id=2, count=250, offset=0):
         site = f'{self.BASE_URL_API}/groups.search?q={q}&type=event&future=1&city_id={city_id}&count={count}&offset={offset}{self.get_end_str}'

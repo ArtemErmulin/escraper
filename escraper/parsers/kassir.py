@@ -133,6 +133,8 @@ class Kassir(BaseParser):
         ...     "date_to": "2026-03-20",
         ...     "categories": ["koncert"],
         ... })  # doctest: +SKIP
+
+        Yields parsed events one at a time as search pages are fetched (generator).
         """
         request_params = request_params or {}
         existed_event_ids = list(existed_event_ids) if existed_event_ids else []
@@ -155,7 +157,6 @@ class Kassir(BaseParser):
         date_from_str = date_from.strftime('%Y-%m-%d')
         date_to_str = date_to.strftime('%Y-%m-%d')
 
-        events = []
         for category_slug in categories:
             skip = 0
             take = 100
@@ -190,16 +191,15 @@ class Kassir(BaseParser):
                         'venue': venue,
                     }
                     self.event_url = obj.get('url', '')
-                    events.append(self.parse(event_data, tags=tags or ALL_EVENT_TAGS))
+                    event = self.parse(event_data, tags=tags or ALL_EVENT_TAGS)
                     existed_event_ids.append(event_id)
+                    yield event
 
                 pagination = result.get('pagination', {})
                 total = pagination.get('totalCount', 0)
                 skip += take
                 if skip >= total:
                     break
-
-        return events
 
     def _adress(self, event_data):
         addr = (event_data.get('venue') or {})

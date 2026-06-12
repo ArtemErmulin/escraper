@@ -40,7 +40,7 @@ class MTS(BaseParser):
         event = self.parse(event_json, tags=tags or ALL_EVENT_TAGS)
         return event
 
-    def get_events(self, request_params={}, tags=None, existed_event_ids=[]):
+    def get_events(self, request_params=None, tags=None, existed_event_ids=None):
         """
         Parameters:
         -----------
@@ -78,10 +78,12 @@ class MTS(BaseParser):
             "date_to":   "2024-05-05",
             "city":      "sankt-peterburg"
         }
-        >>> mts.get_events(request_params=request_params)  # doctest: +SKIP
+        >>> list(mts.get_events(request_params=request_params))  # doctest: +SKIP
+
+        Yields parsed events one at a time as they are scraped (generator).
         """
         request_params = request_params or {}
-        existed_event_ids = list(existed_event_ids)
+        existed_event_ids = list(existed_event_ids) if existed_event_ids else []
 
         if "city" in request_params:
             url = self.url + '/' + request_params['city']
@@ -105,7 +107,6 @@ class MTS(BaseParser):
         else:
             categories = ["ribbon", "concerts", "theater", "musicals", "show", "festivals", "exhibitions", "sport"]
 
-        events = list()
         for category in categories:
 
             category_url = url + '/collections/' + category
@@ -129,16 +130,15 @@ class MTS(BaseParser):
                     event_id = self._id_from_url(event_url)
                     if event_id in existed_event_ids: continue
                     try:
-                        events.append(self.get_event(event_url=event_url, tags=tags))
+                        event = self.get_event(event_url=event_url, tags=tags)
                     except (ValueError, KeyError, json.JSONDecodeError) as e:
                         logger.warning("MTS: skipping event %s: %s", event_url, e)
                         time.sleep(2)
                         continue
                     existed_event_ids.append(event_id)
+                    yield event
 
                 scrape_date += timedelta(days=1)
-
-        return events
 
     def _extract_announcement_collection(self, page_text):
         """Locate and decode the announcementCollection JSON from MTS Next.js RSC payload.

@@ -84,7 +84,7 @@ class Timepad(BaseParser):
 
         return event
 
-    def get_events(self, request_params=None, tags=None, existed_event_ids=[]):
+    def get_events(self, request_params=None, tags=None, existed_event_ids=None):
         """
         Parameters:
         -----------
@@ -160,7 +160,7 @@ class Timepad(BaseParser):
         <10 events after that starts after "2020-08-11T00:00:00">
         """
         request_params = request_params or {}
-        existed_event_ids = list(existed_event_ids)
+        existed_event_ids = list(existed_event_ids) if existed_event_ids else []
         if "fields" not in request_params:
             request_params["fields"] = ", ".join(self.FIELDS)
 
@@ -174,16 +174,10 @@ class Timepad(BaseParser):
 
         res = self._request_get(url, params=request_params, headers=self.headers)
 
-        events_data = list()
         if res:
-            #print(res.json())
             for response_json in res.json()["values"]:
                 if is_moderated(response_json):
-                    events_data.append(self.parse(response_json, tags=tags))
-                else:
-                    events_data.append(None)
-
-        return events_data
+                    yield self.parse(response_json, tags=tags)
 
     def _adress(self, event):
         if "city" not in event["location"]:

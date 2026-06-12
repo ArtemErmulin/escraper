@@ -412,13 +412,12 @@ class ConfigScraper(BaseParser):
 
         response = self._request_get(listing_url)
         if not response:
-            return []
+            return
 
         soup = BeautifulSoup(response.text, "lxml")
         cards = soup.select(config.get("card_selector", "a.event"))
 
         listing_slug = self._slug_from_url(listing_url)
-        events = []
         seen_ids = set()
         for card in cards:
             card_data = self._parse_listing_card(card, config)
@@ -450,9 +449,7 @@ class ConfigScraper(BaseParser):
                 event_url=url, tags=tags, site=site, card_data=card_data
             )
             if event:
-                events.append(event)
-
-        return events
+                yield event
 
     # --- field methods ---
 

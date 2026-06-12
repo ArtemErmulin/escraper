@@ -32,7 +32,7 @@ def requests_get_channel(monkeypatch):
 
 def test_tg_get_events_requires_channels():
     with pytest.raises(ValueError, match="'channels' parameter is required"):
-        Telegram().get_events(request_params={})
+        list(Telegram().get_events(request_params={}))
 
 
 def test_tg_get_events(requests_get_channel):
@@ -40,7 +40,7 @@ def test_tg_get_events(requests_get_channel):
         "channels": ["DavaiSNami"],
         "days": 365,
     }
-    posts = Telegram().get_events(request_params=params)
+    posts = list(Telegram().get_events(request_params=params))
 
     assert len(posts) == 3
 
@@ -60,7 +60,7 @@ def test_tg_get_events_multiple_channels(requests_get_channel):
         "channels": ["DavaiSNami", "another_channel"],
         "days": 365,
     }
-    posts = Telegram().get_events(request_params=params)
+    posts = list(Telegram().get_events(request_params=params))
 
     # Same mock HTML for both channels, but post IDs include channel name
     # from data-post attribute (DavaiSNami/11077), so second channel's posts
@@ -74,7 +74,7 @@ def test_tg_get_events_skip_existing(requests_get_channel):
         "days": 365,
     }
     existing_ids = ["TG-DavaiSNami-11077", "TG-DavaiSNami-11078"]
-    posts = Telegram().get_events(request_params=params, existed_event_ids=existing_ids)
+    posts = list(Telegram().get_events(request_params=params, existed_event_ids=existing_ids))
 
     # Should only get 1 post (11079)
     assert len(posts) == 1
@@ -86,7 +86,7 @@ def test_tg_post_text_extraction(requests_get_channel):
         "channels": ["DavaiSNami"],
         "days": 365,
     }
-    posts = Telegram().get_events(request_params=params, tags=["full_text", "post_text"])
+    posts = list(Telegram().get_events(request_params=params, tags=["full_text", "post_text"]))
 
     # Check that text is properly extracted (post 11077 is last, 11079 is first)
     assert "Бесплатная лекция" in posts[0].full_text
@@ -99,7 +99,7 @@ def test_tg_video_thumbnail(requests_get_channel):
         "channels": ["DavaiSNami"],
         "days": 365,
     }
-    posts = Telegram().get_events(request_params=params, tags=["poster_imag"])
+    posts = list(Telegram().get_events(request_params=params, tags=["poster_imag"]))
 
     # First post (newest, 11079) has video thumbnail but parser only extracts photo_wrap
     assert posts[0].poster_imag is None
@@ -112,7 +112,7 @@ def test_tg_date_extraction(requests_get_channel):
         "channels": ["DavaiSNami"],
         "days": 365,
     }
-    posts = Telegram().get_events(request_params=params, tags=["date_from", "date_to"])
+    posts = list(Telegram().get_events(request_params=params, tags=["date_from", "date_to"]))
 
     # Posts in reverse chronological order: 11079, 11078, 11077
     # date_from == date_to for TG posts (single point in time)
@@ -141,7 +141,7 @@ def test_tg_custom_tags(requests_get_channel):
         "channels": ["DavaiSNami"],
         "days": 365,
     }
-    posts = Telegram().get_events(request_params=params, tags=["title", "url"])
+    posts = list(Telegram().get_events(request_params=params, tags=["title", "url"]))
 
     assert hasattr(posts[0], 'title')
     assert hasattr(posts[0], 'url')

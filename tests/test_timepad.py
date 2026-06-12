@@ -48,7 +48,7 @@ def test_timepad_original_get_events():
         price_max=1500,
     )
 
-    result = timepad.get_events(request_params=timepad_others_params)
+    result = list(timepad.get_events(request_params=timepad_others_params))
     assert len(result) > 0
     assert len(result) <= 10
 
@@ -63,7 +63,7 @@ def test_timepad_original_get_events_in_other_city():
         price_max=1500,
     )
 
-    result = timepad.get_events(request_params=timepad_others_params)
+    result = list(timepad.get_events(request_params=timepad_others_params))
     assert len(result) > 0
 
 
@@ -143,7 +143,7 @@ def requests_get_events(monkeypatch):
 
 
 def test_timepad_get_events(requests_get_events):
-    assert len(Timepad().get_events()) == 1
+    assert len(list(Timepad().get_events())) == 1
 
 
 @pytest.fixture
@@ -159,7 +159,8 @@ def requests_get_events_not_moderated(monkeypatch):
 
 
 def test_timepad_get_events_not_moderated(requests_get_events_not_moderated):
-    assert len(Timepad().get_events()) == 1
+    # not-moderated events are no longer emitted (previously yielded None)
+    assert len(list(Timepad().get_events())) == 0
 
 
 #######################################
@@ -448,4 +449,4 @@ def test_timepad_ticket_statuses():
 
 TIMEPAD_TOKEN = os.getenv("TIMEPAD_TOKEN")
 def test_timepad_get_events_ntr():
-    assert len(Timepad(token=TIMEPAD_TOKEN).get_events()) == 10
+    assert len(list(Timepad(token=TIMEPAD_TOKEN).get_events())) == 10

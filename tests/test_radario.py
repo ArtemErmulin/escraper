@@ -61,7 +61,7 @@ def requests_get_events(monkeypatch):
 
 def test_radario_get_events(requests_get_events):
     params = {"from": get_radario_date(), "to": get_radario_date()}
-    events = Radario().get_events(request_params=params)
+    events = list(Radario().get_events(request_params=params))
 
     assert len(events) == 1
 
@@ -102,7 +102,7 @@ def test_radario_get_events_empty_online(requests_get_empty, caplog):
     }
     radario = Radario()
     with caplog.at_level(logging.WARNING, logger="escraper.parsers.base"):
-        events = radario.get_events(request_params=params)
+        events = list(radario.get_events(request_params=params))
 
     assert len(events) == 0
     assert any("bad response 500" in r.message for r in caplog.records)
@@ -115,14 +115,14 @@ def test_radario_get_events_incorrect_category(caplog):
         "category": ["Invalid_category"],
     }
     with caplog.at_level(logging.WARNING, logger="escraper.parsers.radario"):
-        Radario().get_events(request_params=params)
+        list(Radario().get_events(request_params=params))
 
     assert any("'Invalid_category' does not exist" in r.message for r in caplog.records)
 
 
 def test_radario_get_events_date_for_request(requests_get_empty, caplog):
     with caplog.at_level(logging.WARNING, logger="escraper.parsers.base"):
-        Radario().get_events(request_params={"from": "", "to": ""})
+        list(Radario().get_events(request_params={"from": "", "to": ""}))
 
     assert any("bad response 500" in r.message for r in caplog.records)
 

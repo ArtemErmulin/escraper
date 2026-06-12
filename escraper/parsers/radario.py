@@ -49,7 +49,7 @@ class Radario(BaseParser):
 
         return event
 
-    def get_events(self, request_params=None, tags=None, existed_event_ids=[]):
+    def get_events(self, request_params=None, tags=None, existed_event_ids=None):
         """
         Parameters:
         -----------
@@ -83,7 +83,7 @@ class Radario(BaseParser):
         >>> radario.get_events(request_params_general=request_params)  # doctest: +SKIP
         """
         request_params = (request_params or dict())
-        existed_event_ids = list(existed_event_ids)
+        existed_event_ids = list(existed_event_ids) if existed_event_ids else []
 
         if "city" in request_params:
             city_id = self.cities_to_id(request_params["city"])
@@ -95,8 +95,6 @@ class Radario(BaseParser):
             is_online = True
         else:
             is_online = False
-
-        events = list()
 
         limit = 21
         offset = 0
@@ -134,15 +132,13 @@ class Radario(BaseParser):
 
                         new_event = self.get_event(event_id=event_json['id'], tags=tags or ALL_EVENT_TAGS)
 
-                        events.append(new_event)
                         existed_event_ids.append(new_event.id)
+                        yield new_event
                     if len(list_event_from_json) < limit: break
                     offset += (limit-1)
 
             else:
                 logger.warning("RADARIO: category %r does not exist", cat)
-
-        return events
 
     def _adress(self, event_json_data):
         full_address = event_json_data['placeAddress'].strip()

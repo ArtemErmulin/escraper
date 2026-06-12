@@ -146,7 +146,7 @@ def requests_get_events(monkeypatch):
 def test_config_get_events(requests_get_events):
     scraper = ConfigScraper()
     params = {"site": "testsite"}
-    events = scraper.get_events(request_params=params)
+    events = list(scraper.get_events(request_params=params))
 
     assert len(events) == 3
 
@@ -165,10 +165,10 @@ def test_config_get_events(requests_get_events):
 def test_config_get_events_skip_existed(requests_get_events):
     scraper = ConfigScraper()
     params = {"site": "testsite"}
-    events = scraper.get_events(
+    events = list(scraper.get_events(
         request_params=params,
         existed_event_ids=["CFG-TEST-concert-rock-2024"],
-    )
+    ))
 
     assert len(events) == 2
     ids = {e.id for e in events}
@@ -177,7 +177,7 @@ def test_config_get_events_skip_existed(requests_get_events):
 
 def test_config_get_events_no_site():
     with pytest.raises(ValueError):
-        ConfigScraper().get_events(request_params={})
+        list(ConfigScraper().get_events(request_params={}))
 
 
 #######################################
@@ -263,7 +263,7 @@ def test_config_as_dict_in_get_events(requests_get_events):
     """Pass site config as dict instead of registered name."""
     scraper = ConfigScraper()
     params = {"site": TEST_SITE_CONFIG}
-    events = scraper.get_events(request_params=params)
+    events = list(scraper.get_events(request_params=params))
 
     assert len(events) == 3
     for e in events:
@@ -293,4 +293,4 @@ def test_config_as_dict_in_get_event(requests_get_event):
 
 def test_config_unknown_site_string():
     with pytest.raises(ValueError, match="Unknown site"):
-        ConfigScraper().get_events(request_params={"site": "nonexistent"})
+        list(ConfigScraper().get_events(request_params={"site": "nonexistent"}))

@@ -96,7 +96,7 @@ def requests_get_events(monkeypatch):
 
 def test_mts_get_events(requests_get_events):
     params = {"date_from": '2024-05-20', "date_to": '2024-05-20', "city":'test_city', "categories":['ribbon']}
-    events = MTS().get_events(request_params=params)
+    events = list(MTS().get_events(request_params=params))
 
     assert len(events) == 3
 

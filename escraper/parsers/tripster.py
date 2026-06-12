@@ -136,13 +136,11 @@ class Tripster(BaseParser):
             res = self._request_get(url, params=request_params, headers=self.headers, proxies=proxies)
         else:
             res = self._request_get(url, params=request_params, headers=self.headers)
-        events = []
         logger.debug("TRIPSTER: response payload: %s", res.json())
         for obj in res.json().get("results", []):
             #print(obj)
             if obj["status"] == "active" and obj.get("schedule", {}).get("upcoming_events"):  # есть свободные даты
-                events.append(self.parse(obj, tags=tags))
-        return events
+                yield self.parse(obj, tags=tags)
 
     def _adress(self, event):
         if event.get("meeting_point") and event["meeting_point"].get("text"):

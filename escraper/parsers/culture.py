@@ -55,7 +55,7 @@ class Culture(BaseParser):
         self.event_url = event_url
         return self.parse(event_json, tags=tags or ALL_EVENT_TAGS)
 
-    def get_events(self, request_params={}, tags=None, existed_event_ids=[]):
+    def get_events(self, request_params=None, tags=None, existed_event_ids=None):
         """
         Parameters:
         -----------
@@ -92,10 +92,12 @@ class Culture(BaseParser):
             "date_to":   "2024-05-05",
             "city":      "sankt-peterburg"
         }
-        >>> cltr.get_events(request_params=request_params)  # doctest: +SKIP
+        >>> list(cltr.get_events(request_params=request_params))  # doctest: +SKIP
+
+        Yields parsed events one at a time as they are scraped (generator).
         """
         request_params = request_params or {}
-        existed_event_ids = list(existed_event_ids)
+        existed_event_ids = list(existed_event_ids) if existed_event_ids else []
 
         if "city" in request_params:
             url = self.url + '/' + request_params['city']
@@ -120,25 +122,25 @@ class Culture(BaseParser):
             categories = ['spektakli', 'kontserti', 'vstrechi', 'prazdniki', 'vistavki', 'tags-kultura-onlain']
 
         failure_count = 0
+        collected = 0
 
         def _tripped():
             if failure_count >= self.MAX_FAILURES:
                 logger.error(
                     "CLTR: %d failures hit (>= MAX_FAILURES=%d) — aborting run, collected %d events so far",
-                    failure_count, self.MAX_FAILURES, len(events),
+                    failure_count, self.MAX_FAILURES, collected,
                 )
                 return True
             return False
 
-        events = list()
         for category in categories:
             if _tripped():
-                return events
+                return
             category_url = url + '/' + category
             scrape_date = date_from
             while scrape_date <= date_to:
                 if _tripped():
-                    return events
+                    return
 
                 scrape_url = category_url + f"/seanceStartDate-{scrape_date.date()}/seanceEndDate-{scrape_date.date()}"
                 response = self._request_get(scrape_url)
@@ -159,7 +161,7 @@ class Culture(BaseParser):
 
                 for event_json in event_list_json:
                     if _tripped():
-                        return events
+                        return
                     event_id = f"{self.source}-{event_json['_id']}"
                     if event_id in existed_event_ids: continue
                     event_url = self.EVENT_URL + f"/{event_json['_id']}/{event_json['name']}"
@@ -173,12 +175,11 @@ class Culture(BaseParser):
                         failure_count += 1
                         logger.warning("CLTR: get_event returned None for %s (failures: %d/%d)", event_url, failure_count, self.MAX_FAILURES)
                         continue
-                    events.append(new_event)
                     existed_event_ids.append(event_id)
+                    collected += 1
+                    yield new_event
 
                 scrape_date += timedelta(days=1)
-
-        return events
 
     def _adress(self, event_json):
         if 'address' in event_json["places"][0] and event_json["places"][0]['address'] is not None:

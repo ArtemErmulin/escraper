@@ -77,7 +77,7 @@ class Telegram(BaseParser):
 
         return self.parse(message, tags=tags or ALL_EVENT_TAGS)
 
-    def get_events(self, request_params={}, tags=None, existed_event_ids=[]):
+    def get_events(self, request_params=None, tags=None, existed_event_ids=None):
         """
         Get posts from Telegram channels.
 
@@ -112,10 +112,12 @@ class Telegram(BaseParser):
         ...     "channels": ["DavaiSNami", "spb_events"],
         ...     "days": 7,
         ... }
-        >>> posts = tg.get_events(request_params=request_params)  # doctest: +SKIP
+        >>> posts = list(tg.get_events(request_params=request_params))  # doctest: +SKIP
+
+        Yields posts one at a time as channels are scraped (generator).
         """
         request_params = request_params or {}
-        existed_event_ids = list(existed_event_ids)
+        existed_event_ids = list(existed_event_ids) if existed_event_ids else []
 
         channels = request_params.get("channels", [])
         if not channels:
@@ -129,10 +131,8 @@ class Telegram(BaseParser):
         # Build mapping of channel -> max known post ID
         last_known_post_ids = self._parse_existed_ids(existed_event_ids)
 
-        events = []
-
         for channel in channels:
-            channel_posts = self._scrape_channel(
+            yield from self._scrape_channel(
                 channel=channel,
                 cutoff_date=cutoff_date,
                 max_posts=max_posts,
@@ -140,9 +140,6 @@ class Telegram(BaseParser):
                 last_known_post_id=last_known_post_ids.get(channel.lower()),
                 tags=tags
             )
-            events.extend(channel_posts)
-
-        return events
 
     def _parse_existed_ids(self, existed_event_ids):
         """
@@ -183,13 +180,14 @@ class Telegram(BaseParser):
         If last_known_post_id is provided, scraper will:
         - Fetch all new posts (with ID > last_known_post_id)
         - Stop when reaching the known post (no need to go further back)
+
+        Yields parsed posts one at a time (generator).
         """
         channel_url = f"{self.BASE_URL}{channel}"
-        posts = []
 
         response = self._request_get(channel_url)
         if not response:
-            return posts
+            return
 
         soup = BeautifulSoup(response.text, "lxml")
         messages = soup.find_all("div", class_="tgme_widget_message")
@@ -229,13 +227,11 @@ class Telegram(BaseParser):
 
             try:
                 event = self.parse(message, tags=tags or ALL_EVENT_TAGS)
-                posts.append(event)
-                existed_event_ids.append(post_id)
             except Exception:
                 # Skip posts that fail to parse
                 continue
-
-        return posts
+            existed_event_ids.append(post_id)
+            yield event
 
     def _extract_post_date(self, message):
         """Extract datetime from a post message."""

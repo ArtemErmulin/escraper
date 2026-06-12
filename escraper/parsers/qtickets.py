@@ -55,7 +55,7 @@ class QTickets(BaseParser):
 
         return event
 
-    def get_events(self, request_params={}, tags=None, existed_event_ids=[]):
+    def get_events(self, request_params=None, tags=None, existed_event_ids=None):
         """
         Parameters:
         -----------
@@ -86,7 +86,7 @@ class QTickets(BaseParser):
         >>> qt.get_events(request_params=request_params)  # doctest: +SKIP
         """
         request_params = request_params or {}
-        existed_event_ids = list(existed_event_ids)
+        existed_event_ids = list(existed_event_ids) if existed_event_ids else []
 
         if "city" in request_params:
             self.url = self.url.replace('spb', request_params['city'])
@@ -120,7 +120,6 @@ class QTickets(BaseParser):
         MAX_EMPTY_PAGES = 2
         MAX_PAGES = 200
 
-        events = list()
         empty_streak = 0
         page = 1
         while page <= MAX_PAGES:
@@ -157,14 +156,13 @@ class QTickets(BaseParser):
 
                 try:
                     event_soup = BeautifulSoup(self._request_get(event_url).text, "lxml")
-                    events.append(self.parse(event_soup, tags=tags or ALL_EVENT_TAGS))
-                    existed_event_ids.append(event_id)
+                    event = self.parse(event_soup, tags=tags or ALL_EVENT_TAGS)
                 except (AttributeError, KeyError, ValueError) as e:
                     logger.warning("QT: skipping event %s: %s", event_url, e)
                     continue
+                existed_event_ids.append(event_id)
+                yield event
             page += 1
-
-        return events
 
     def _adress(self, event_soup):
         full_address = event_soup.find(
