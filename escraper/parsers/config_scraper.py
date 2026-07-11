@@ -41,7 +41,8 @@ SITES = {
         "card_image_attr": "data-src",
         # --- detail page selectors ---
         "description_selector": ".infopage_text_flex",
-        "time_selector": None,
+        "time_selector": ".infopage_time_val",
+        "place_selector": ".infopage_time .item_w_dot",
         "price_selector": None,
         # --- date ---
         "date_format": "russian",
@@ -62,7 +63,9 @@ SITES = {
         "card_image_attr": "src",
         # --- detail page selectors ---
         "description_selector": ".col-sm-8",
-        "time_selector": ".prop.TIME",
+        # Site dropped the structured .prop.TIME block; session times now live
+        # in free text — fall back to DEFAULT_EVENT_HOUR.
+        "time_selector": None,
         "price_selector": None,
         # --- date ---
         "date_format": "%d.%m.%Y",
@@ -91,6 +94,68 @@ SITES = {
         "default_address": "Барочная ул., 4А",
         "default_place": "Левашовский хлебозавод",
     },
+    "rusmuseum": {
+        "name": "rusmuseum",
+        "source": "RUSM",
+        "base_url": "https://rusmuseum.ru",
+        "listing_url": "/exhibitions/current/",
+        # --- listing selectors ---
+        "card_selector": ".tile.card",
+        "card_title_selector": "h3.event-title-name",
+        "card_date_selector": ".event-date",
+        "card_image_selector": "img.image-card",
+        "card_image_attr": "src",
+        "card_description_selector": ".event-about-text",
+        "card_link_selector": "a.building",
+        "card_place_selector": "a.building",
+        # --- detail page ---
+        # Detail pages are client-side rendered (Vue) — no server HTML to parse
+        "skip_detail": True,
+        # --- date ---
+        "date_format": "russian",
+        "default_time": "10:00",
+        # --- defaults ---
+        "default_category": "выставки",
+        "default_address": "Инженерная ул., 4",
+        "default_place": "Русский музей",
+        "places": {
+            "Михайловский дворец": "Инженерная ул., 4",
+            "Корпус Бенуа": "наб. канала Грибоедова, 2",
+            "Мраморный дворец": "Миллионная ул., 5/1",
+            "Строгановский дворец": "Невский пр., 17",
+            "Михайловский замок": "Садовая ул., 2",
+            "Западный павильон Михайловского замка": "Инженерная ул., 8",
+            "Домик Петра I": "Петровская наб., 6",
+        },
+    },
+    "erarta": {
+        "name": "erarta",
+        "source": "ERAR",
+        "base_url": "https://www.erarta.com",
+        # Exhibitions filter of the calendar — /ru/calendar/ may also list
+        # concerts and other events, so default_category stays correct
+        "listing_url": "/ru/calendar/exhibitions/",
+        # --- listing selectors ---
+        "card_selector": "li.events__item",
+        "card_title_selector": ".events__item-name",
+        "card_date_selector": ".events__item-date",
+        "card_image_selector": "img",
+        "card_image_attr": "src",
+        "card_link_selector": "a.events__item-name",
+        # --- detail page selectors ---
+        "description_selector": ".content",
+        # Site header: "сегодня музей работает с 11:00 до 23:00" —
+        # gives both opening (date_from) and closing (date_to) time
+        "time_selector": ".header__info-text",
+        "price_selector": None,
+        # --- date ---
+        "date_format": "russian",
+        "default_time": "11:00",
+        # --- defaults ---
+        "default_category": "выставки",
+        "default_address": "29-я линия В.О., 2",
+        "default_place": "Эрарта",
+    },
     "alexandrinsky": {
         "name": "alexandrinsky",
         "source": "ALXN",
@@ -105,6 +170,7 @@ SITES = {
         "card_image_attr": "src",
         "card_description_selector": ".box-poster-tickets-txt",
         "card_link_selector": "h4 a",
+        "card_place_selector": ".box-schedule span",
         # --- detail page ---
         "skip_detail": True,
         # --- date ---
@@ -112,6 +178,10 @@ SITES = {
         # --- defaults ---
         "default_address": "пл. Островского, 6",
         "default_place": "Александринский театр",
+        "places": {
+            "Основная сцена": "пл. Островского, 6",
+            "Новая сцена": "наб. реки Фонтанки, 49А",
+        },
     },
 }
 
@@ -119,12 +189,12 @@ SITES = {
 class ConfigScraper(BaseParser):
     name = "config"
     source = "CFG"
+    DEFAULT_EVENT_HOUR = 19
 
     def __init__(self, use_proxy=True):
         super().__init__(use_proxy=use_proxy)
         self._current_event = {}
         self._current_config = {}
-        self.timedelta_hours = self.timedelta_with_gmt0()
 
     @staticmethod
     def _resolve_config(site):
@@ -325,6 +395,7 @@ class ConfigScraper(BaseParser):
             )
         category = self._extract_field(card, config.get("card_category_selector"))
         description = self._extract_field(card, config.get("card_description_selector"))
+        place = self._extract_field(card, config.get("card_place_selector"))
 
         # Build URL — if href exists use it, otherwise generate from listing URL + title slug
         if href:
@@ -342,6 +413,8 @@ class ConfigScraper(BaseParser):
             data["category"] = category
         if description:
             data["description"] = description
+        if place:
+            data["place"] = place
         return data
 
     def get_event(self, event_url=None, tags=None, site=None, card_data=None):
@@ -378,6 +451,11 @@ class ConfigScraper(BaseParser):
                 time_str = self._extract_field(soup, config.get("time_selector"))
                 if time_str:
                     data["time"] = time_str.strip()
+
+                if not data.get("place"):
+                    place = self._extract_field(soup, config.get("place_selector"))
+                    if place:
+                        data["place"] = place
 
                 if not data.get("date_str"):
                     data["date_str"] = self._extract_field(soup, ".date")
@@ -456,43 +534,92 @@ class ConfigScraper(BaseParser):
     def _title(self, event_data):
         return add_emoji(event_data.get("title", ""))
 
+    @staticmethod
+    def _clean_place(place):
+        """Strip list markers ('● Цех') and trailing punctuation ('Барная линия,')."""
+        place = re.sub(r"^[^\w«\"']+", "", place)
+        return place.strip().rstrip(",.")
+
     def _adress(self, event_data):
+        place = event_data.get("place")
+        if place:
+            places = self._current_config.get("places", {})
+            address = places.get(self._clean_place(place))
+            if address:
+                return address
         return self._current_config.get("default_address", "")
 
     def _category(self, event_data):
         if event_data.get("category"):
             return event_data["category"]
+        default = self._current_config.get("default_category")
+        if default:
+            return default
         title = event_data.get("title", "")
         text = event_data.get("description", "")
         return detect_category(title, text)
+
+    def _default_event_time(self):
+        """(hour, minute) to use when the site gives no event time."""
+        default = self._current_config.get("default_time")
+        if default:
+            match = re.match(r"(\d{1,2}):(\d{2})", default)
+            if match:
+                return int(match.group(1)), int(match.group(2))
+        return self.DEFAULT_EVENT_HOUR, 0
 
     def _date_from(self, event_data):
         date_str = event_data.get("date_str")
         fmt = self._current_config.get("date_format", "%d.%m.%Y")
         date_from, _, time_str = self._parse_date_range(date_str, fmt)
 
-        # Default: one week from now
-        if date_from is None:
-            return (datetime.now() + timedelta(weeks=1)).astimezone(self.TIMEZONE)
+        default_hour, default_minute = self._default_event_time()
 
-        # Time from date string (e.g. "21 февраля, 19:00") or from detail page
+        # Default: one week from now at the default event time
+        if date_from is None:
+            date_from = datetime.now(self.TIMEZONE) + timedelta(weeks=1)
+            return date_from.replace(
+                hour=default_hour, minute=default_minute, second=0, microsecond=0
+            )
+
+        # Time from date string (e.g. "21 февраля, 19:00")
+        # or from detail page (e.g. "19:30", "с 19:00", "с 12:00 до 22:00")
         time_str = time_str or event_data.get("time", "")
-        if time_str:
-            match = re.match(r"(\d{1,2}):(\d{2})", time_str)
-            if match:
-                date_from = date_from.replace(
-                    hour=int(match.group(1)), minute=int(match.group(2))
-                )
-        date_from = date_from - timedelta(hours=self.timedelta_hours)
-        return date_from.astimezone(self.TIMEZONE)
+        match = re.search(r"(\d{1,2}):(\d{2})", time_str) if time_str else None
+        if match:
+            date_from = date_from.replace(
+                hour=int(match.group(1)), minute=int(match.group(2))
+            )
+        elif date_from.hour == 0 and date_from.minute == 0:
+            # Site gave no time — use the default time instead of midnight
+            date_from = date_from.replace(hour=default_hour, minute=default_minute)
+        return self.TIMEZONE.localize(date_from)
 
     def _date_to(self, event_data):
         date_str = event_data.get("date_str")
         fmt = self._current_config.get("date_format", "%d.%m.%Y")
-        _, date_to, _ = self._parse_date_range(date_str, fmt)
+        date_from, date_to, time_str = self._parse_date_range(date_str, fmt)
+
+        # Closing time like "с 12:00 до 22:00" from date string or detail page
+        time_str = time_str or event_data.get("time", "")
+        closing = re.search(r"до\s*(\d{1,2}):(\d{2})", time_str) if time_str else None
 
         if date_to:
-            return date_to.astimezone(self.TIMEZONE)
+            if closing:
+                date_to = date_to.replace(
+                    hour=int(closing.group(1)), minute=int(closing.group(2))
+                )
+            else:
+                # End of the last day instead of midnight before it
+                date_to = date_to.replace(hour=23, minute=59)
+            return self.TIMEZONE.localize(date_to)
+
+        if closing and date_from:
+            date_to = date_from.replace(
+                hour=int(closing.group(1)), minute=int(closing.group(2))
+            )
+            return self.TIMEZONE.localize(date_to)
+
         # No explicit end date — date_from + 2 hours
         return self._date_from(event_data) + timedelta(hours=2)
 
@@ -535,7 +662,13 @@ class ConfigScraper(BaseParser):
         return event_data.get("url", "")
 
     def _place_name(self, event_data):
-        return self._current_config.get("default_place", "")
+        default = self._current_config.get("default_place", "")
+        place = event_data.get("place")
+        if place:
+            place = self._clean_place(place)
+            if place and place.lower() != default.lower():
+                return f"{default}, {place}" if default else place
+        return default
 
     def _full_text(self, event_data):
         return event_data.get("description", "")

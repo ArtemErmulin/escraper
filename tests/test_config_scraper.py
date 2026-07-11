@@ -105,6 +105,8 @@ def test_config_get_event(requests_get_event):
     assert event.url == event_url
     assert event.source == "CFG"
     assert event.is_registration_open is True
+    # No price selector — no guessing from description text
+    assert event.price == "на сайте"
 
 
 def test_config_get_event_date_range(requests_get_event):
@@ -122,7 +124,8 @@ def test_config_get_event_date_range(requests_get_event):
     event = scraper.get_event(event_url=event_url, site="testsite", card_data=card_data)
 
     assert event.date_from == datetime(2024, 7, 1, 19, 30).astimezone(MSK)
-    assert event.date_to == datetime(2024, 7, 15).astimezone(MSK)
+    # No closing time on page — end of the last day
+    assert event.date_to == datetime(2024, 7, 15, 23, 59).astimezone(MSK)
     assert event.date_from_to == "01.07.2024–15.07.2024"
 
 
@@ -243,6 +246,218 @@ def test_parse_russian_date_with_time():
     assert d_from.day == 21
     assert d_to is None
     assert time_str == "19:00"
+
+
+#######################################
+## default time and time from detail page
+#######################################
+def test_config_default_time_when_no_time_on_site(monkeypatch):
+    """Date without time — default to 19:00 instead of midnight."""
+    def get(url, **kwargs):
+        return Response(ok=True, text="<html><body></body></html>")
+
+    monkeypatch.setattr(requests, "get", get)
+
+    scraper = ConfigScraper()
+    config = dict(TEST_SITE_CONFIG, date_format="russian", time_selector=None)
+    event = scraper.get_event(
+        event_url="https://testsite.example.com/afisha/no-time/",
+        site=config,
+        card_data={"url": "https://testsite.example.com/afisha/no-time/",
+                   "title": "Событие без времени", "date_str": "12 июля"},
+    )
+
+    assert event.date_from.hour == 19
+    assert event.date_from.minute == 0
+    assert event.date_from == MSK.localize(
+        datetime(event.date_from.year, 7, 12, 19, 0)
+    )
+    assert event.date_to == event.date_from + timedelta(hours=2)
+
+
+def test_config_default_time_when_no_date(monkeypatch):
+    """No date at all — fallback 'one week from now' also at 19:00."""
+    def get(url, **kwargs):
+        return Response(ok=True, text="<html><body></body></html>")
+
+    monkeypatch.setattr(requests, "get", get)
+
+    scraper = ConfigScraper()
+    event = scraper.get_event(
+        event_url="https://testsite.example.com/afisha/no-date/",
+        site="testsite",
+        card_data={"url": "https://testsite.example.com/afisha/no-date/",
+                   "title": "Событие без даты"},
+    )
+
+    assert event.date_from.hour == 19
+    assert event.date_from.minute == 0
+
+
+def test_config_time_from_detail_page_sevcable_style(monkeypatch):
+    """Time like 'с 20:30' from detail page (.infopage_time_val) is used."""
+    def get(url, **kwargs):
+        with open(TESTDATA / "event_page_sevcable.html") as f:
+            return Response(ok=True, text=f.read())
+
+    monkeypatch.setattr(requests, "get", get)
+
+    scraper = ConfigScraper()
+    event = scraper.get_event(
+        event_url="https://sevcableport.ru/afisha/koncert-v-portu/",
+        site="sevcable",
+        card_data={"url": "https://sevcableport.ru/afisha/koncert-v-portu/",
+                   "title": "Концерт в Порту", "date_str": "12 июля"},
+    )
+
+    assert event.date_from.hour == 20
+    assert event.date_from.minute == 30
+    assert event.date_from == MSK.localize(
+        datetime(event.date_from.year, 7, 12, 20, 30)
+    )
+    assert "концерт у моря" in event.full_text
+
+
+#######################################
+## closing time and per-event place
+#######################################
+def test_config_date_to_from_closing_time(monkeypatch):
+    """Range date + working hours 'с 12:00 до 22:00' on detail page."""
+    html = """<html><body>
+    <div class="infopage_time_val">с 12:00 до 22:00</div>
+    <div class="descr">Выставка у моря.</div>
+    </body></html>"""
+    monkeypatch.setattr(requests, "get", lambda url, **kw: Response(ok=True, text=html))
+
+    scraper = ConfigScraper()
+    config = dict(
+        TEST_SITE_CONFIG,
+        date_format="russian",
+        time_selector=".infopage_time_val",
+        description_selector=".descr",
+    )
+    event = scraper.get_event(
+        event_url="https://testsite.example.com/afisha/exhibition/",
+        site=config,
+        card_data={"url": "https://testsite.example.com/afisha/exhibition/",
+                   "title": "Выставка", "date_str": "с 10 июля по 20 июля"},
+    )
+
+    year = event.date_from.year
+    assert event.date_from == MSK.localize(datetime(year, 7, 10, 12, 0))
+    assert event.date_to == MSK.localize(datetime(year, 7, 20, 22, 0))
+
+
+def test_config_place_and_address_map():
+    """Scraped place (scene) selects address from the 'places' map."""
+    scraper = ConfigScraper()
+    scraper._current_config = {
+        "default_address": "пл. Островского, 6",
+        "default_place": "Александринский театр",
+        "places": {
+            "Основная сцена": "пл. Островского, 6",
+            "Новая сцена": "наб. реки Фонтанки, 49А",
+        },
+    }
+
+    assert scraper._adress({"place": "Новая сцена"}) == "наб. реки Фонтанки, 49А"
+    assert scraper._adress({"place": "Основная сцена"}) == "пл. Островского, 6"
+    # Unknown place or no place — default address
+    assert scraper._adress({"place": "Другая площадка"}) == "пл. Островского, 6"
+    assert scraper._adress({}) == "пл. Островского, 6"
+
+    assert scraper._place_name({"place": "Новая сцена"}) == "Александринский театр, Новая сцена"
+    assert scraper._place_name({}) == "Александринский театр"
+    # Markers and trailing punctuation are cleaned
+    assert scraper._place_name({"place": "● Барная линия,"}) == "Александринский театр, Барная линия"
+
+
+#######################################
+## rusmuseum: default_category, default_time, places
+#######################################
+def test_config_rusmuseum_listing(monkeypatch):
+    def get(url, **kwargs):
+        with open(TESTDATA / "listing_rusmuseum.html") as f:
+            return Response(ok=True, text=f.read())
+
+    monkeypatch.setattr(requests, "get", get)
+
+    scraper = ConfigScraper()
+    events = list(scraper.get_events(request_params={"site": "rusmuseum"}))
+
+    assert len(events) == 3
+    by_title = {e.title[2:]: e for e in events}  # strip emoji prefix
+
+    velikaya = by_title["Великая. Образ женщины в русском искусстве"]
+    # Date range with years, default_time 10:00, end of last day
+    assert velikaya.date_from == MSK.localize(datetime(2026, 6, 6, 10, 0))
+    assert velikaya.date_to == MSK.localize(datetime(2027, 1, 11, 23, 59))
+    # default_category for the site
+    assert velikaya.category == "выставки"
+    # Building from card → place and address
+    assert velikaya.place_name == "Русский музей, Михайловский дворец"
+    assert velikaya.adress == "Инженерная ул., 4"
+    assert velikaya.url == (
+        "https://rusmuseum.ru/exhibitions/current/"
+        "velikaya-obraz-zhenshchiny-v-russkom-iskusstve/"
+    )
+    assert velikaya.poster_imag == "https://rusmuseum.ru/upload/iblock/109/velikaya.webp"
+    assert "Русский музей открывает выставку" in velikaya.full_text
+
+    shishkin = by_title["Иван Шишкин. Русский лес"]
+    assert shishkin.place_name == "Русский музей, Корпус Бенуа"
+    assert shishkin.adress == "наб. канала Грибоедова, 2"
+    assert shishkin.date_from == MSK.localize(datetime(2026, 4, 25, 10, 0))
+
+    tropinin = by_title["Василий Тропинин"]
+    assert tropinin.place_name == "Русский музей, Мраморный дворец"
+    assert tropinin.adress == "Миллионная ул., 5/1"
+    assert tropinin.category == "выставки"
+
+
+def test_config_erarta_listing(monkeypatch):
+    def get(url, **kwargs):
+        if url.rstrip("/").endswith("exhibitions"):
+            filepath = TESTDATA / "listing_erarta.html"
+        else:
+            filepath = TESTDATA / "event_page_erarta.html"
+        with open(filepath) as f:
+            return Response(ok=True, text=f.read())
+
+    monkeypatch.setattr(requests, "get", get)
+
+    scraper = ConfigScraper()
+    events = list(scraper.get_events(request_params={"site": "erarta"}))
+
+    assert len(events) == 2
+    event = events[0]
+
+    assert event.title[2:] == "Нестор Хименес. Спектр синего шума"
+    assert event.id == "CFG-ERAR-220925"
+    assert event.category == "выставки"
+    # Opening/closing hours from the site header "с 11:00 до 23:00"
+    assert event.date_from == MSK.localize(datetime(2026, 4, 25, 11, 0))
+    assert event.date_to == MSK.localize(datetime(2026, 8, 23, 23, 0))
+    assert event.place_name == "Эрарта"
+    assert event.adress == "29-я линия В.О., 2"
+    assert event.url == "https://www.erarta.com/ru/calendar/exhibitions/detail/220925/"
+    assert event.poster_imag == (
+        "https://www.erarta.com/upload/resize_cache/iblock/357/370_240_2/khimenez.jpg"
+    )
+    # Description from the first .content block on the detail page
+    assert "выставку мексиканского художника" in event.full_text
+
+
+def test_config_default_category_not_used_when_detected():
+    """Sites without default_category still detect from title/text."""
+    scraper = ConfigScraper()
+    scraper._current_config = {}
+    assert scraper._category({"title": "Рок-концерт в клубе"}) == "концерты"
+
+    scraper._current_config = {"default_category": "выставки"}
+    # Explicit category from card wins over default
+    assert scraper._category({"category": "театр", "title": "X"}) == "театр"
+    assert scraper._category({"title": "Рок-концерт в клубе"}) == "выставки"
 
 
 def test_detect_category():
