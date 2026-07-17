@@ -10,6 +10,8 @@ from .tripster import Tripster
 from .tg import Telegram
 from .config_scraper import ConfigScraper
 from .kassir import Kassir
+from .afisha import Afisha
+
 
 
 all_parsers = dict(
@@ -23,4 +25,5 @@ all_parsers = dict(
     tg=Telegram,
     config=ConfigScraper,
     kassir=Kassir,
+    afisha=Afisha,
 )
