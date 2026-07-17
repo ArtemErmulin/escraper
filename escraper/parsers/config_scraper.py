@@ -1,4 +1,5 @@
 import hashlib
+import logging
 import re
 from datetime import datetime, timedelta
 from urllib.parse import urljoin, urlparse
@@ -6,8 +7,11 @@ from urllib.parse import urljoin, urlparse
 from bs4 import BeautifulSoup
 
 from .base import BaseParser, ALL_EVENT_TAGS
+from .configs import SITES
 from .utils import detect_category
 from ..emoji import add_emoji
+
+logger = logging.getLogger(__name__)
 
 
 MONTHS_RU = {
@@ -26,164 +30,6 @@ TRANSLIT = {
 }
 
 
-SITES = {
-    "sevcable": {
-        "name": "sevcable",
-        "source": "SEVC",
-        "base_url": "https://sevcableport.ru",
-        "listing_url": "/afisha/",
-        # --- listing selectors ---
-        "card_selector": "a.event_card",
-        "card_title_selector": ".event_name",
-        "card_date_selector": ".event_surname",
-        "card_category_selector": ".event_type",
-        "card_image_selector": ".event_foto_img",
-        "card_image_attr": "data-src",
-        # --- detail page selectors ---
-        "description_selector": ".infopage_text_flex",
-        "time_selector": ".infopage_time_val",
-        "place_selector": ".infopage_time .item_w_dot",
-        "price_selector": None,
-        # --- date ---
-        "date_format": "russian",
-        # --- defaults ---
-        "default_address": "Кожевенная линия, 40",
-        "default_place": "Севкабель Порт",
-    },
-    "newholland": {
-        "name": "newholland",
-        "source": "NHOL",
-        "base_url": "https://www.newhollandsp.ru",
-        "listing_url": "/events/",
-        # --- listing selectors ---
-        "card_selector": "a.event",
-        "card_title_selector": ".event-name",
-        "card_date_selector": ".event-date",
-        "card_image_selector": "img",
-        "card_image_attr": "src",
-        # --- detail page selectors ---
-        "description_selector": ".col-sm-8",
-        # Site dropped the structured .prop.TIME block; session times now live
-        # in free text — fall back to DEFAULT_EVENT_HOUR.
-        "time_selector": None,
-        "price_selector": None,
-        # --- date ---
-        "date_format": "%d.%m.%Y",
-        # --- defaults ---
-        "default_address": "наб. Адмиралтейского канала, 2",
-        "default_place": "Новая Голландия",
-    },
-    "levashovsky": {
-        "name": "levashovsky",
-        "source": "LVSH",
-        "base_url": "https://levashovsky.ru",
-        "listing_url": "/afisha",
-        # --- listing selectors ---
-        "card_selector": ".t390",
-        "card_title_selector": ".t390__title",
-        "card_date_selector": ".t390__uptitle",
-        "card_description_selector": ".t390__descr",
-        "card_image_selector": ".t390__img",
-        "card_image_attr": "data-original",
-        "card_link_selector": "a",
-        # --- detail page ---
-        "skip_detail": True,
-        # --- date ---
-        "date_format": "russian",
-        # --- defaults ---
-        "default_address": "Барочная ул., 4А",
-        "default_place": "Левашовский хлебозавод",
-    },
-    "rusmuseum": {
-        "name": "rusmuseum",
-        "source": "RUSM",
-        "base_url": "https://rusmuseum.ru",
-        "listing_url": "/exhibitions/current/",
-        # --- listing selectors ---
-        "card_selector": ".tile.card",
-        "card_title_selector": "h3.event-title-name",
-        "card_date_selector": ".event-date",
-        "card_image_selector": "img.image-card",
-        "card_image_attr": "src",
-        "card_description_selector": ".event-about-text",
-        "card_link_selector": "a.building",
-        "card_place_selector": "a.building",
-        # --- detail page ---
-        # Detail pages are client-side rendered (Vue) — no server HTML to parse
-        "skip_detail": True,
-        # --- date ---
-        "date_format": "russian",
-        "default_time": "10:00",
-        # --- defaults ---
-        "default_category": "выставки",
-        "default_address": "Инженерная ул., 4",
-        "default_place": "Русский музей",
-        "places": {
-            "Михайловский дворец": "Инженерная ул., 4",
-            "Корпус Бенуа": "наб. канала Грибоедова, 2",
-            "Мраморный дворец": "Миллионная ул., 5/1",
-            "Строгановский дворец": "Невский пр., 17",
-            "Михайловский замок": "Садовая ул., 2",
-            "Западный павильон Михайловского замка": "Инженерная ул., 8",
-            "Домик Петра I": "Петровская наб., 6",
-        },
-    },
-    "erarta": {
-        "name": "erarta",
-        "source": "ERAR",
-        "base_url": "https://www.erarta.com",
-        # Exhibitions filter of the calendar — /ru/calendar/ may also list
-        # concerts and other events, so default_category stays correct
-        "listing_url": "/ru/calendar/exhibitions/",
-        # --- listing selectors ---
-        "card_selector": "li.events__item",
-        "card_title_selector": ".events__item-name",
-        "card_date_selector": ".events__item-date",
-        "card_image_selector": "img",
-        "card_image_attr": "src",
-        "card_link_selector": "a.events__item-name",
-        # --- detail page selectors ---
-        "description_selector": ".content",
-        # Site header: "сегодня музей работает с 11:00 до 23:00" —
-        # gives both opening (date_from) and closing (date_to) time
-        "time_selector": ".header__info-text",
-        "price_selector": None,
-        # --- date ---
-        "date_format": "russian",
-        "default_time": "11:00",
-        # --- defaults ---
-        "default_category": "выставки",
-        "default_address": "29-я линия В.О., 2",
-        "default_place": "Эрарта",
-    },
-    "alexandrinsky": {
-        "name": "alexandrinsky",
-        "source": "ALXN",
-        "base_url": "https://alexandrinsky.ru",
-        "listing_url": "/afisha-i-bilety/",
-        # --- listing selectors ---
-        "card_selector": "div.box-poster-tickets",
-        "card_title_selector": "h4",
-        "card_date_selector": ".repertoire-date-list__item",
-        "card_category_selector": ".box-addition-description",
-        "card_image_selector": "img",
-        "card_image_attr": "src",
-        "card_description_selector": ".box-poster-tickets-txt",
-        "card_link_selector": "h4 a",
-        "card_place_selector": ".box-schedule span",
-        # --- detail page ---
-        "skip_detail": True,
-        # --- date ---
-        "date_format": "russian",
-        # --- defaults ---
-        "default_address": "пл. Островского, 6",
-        "default_place": "Александринский театр",
-        "places": {
-            "Основная сцена": "пл. Островского, 6",
-            "Новая сцена": "наб. реки Фонтанки, 49А",
-        },
-    },
-}
 
 
 class ConfigScraper(BaseParser):
@@ -262,14 +108,16 @@ class ConfigScraper(BaseParser):
         if not text:
             return None, None, None
 
-        text = re.sub(r'\s+', ' ', text.strip())
+        # Commas are noise: "13 июля , 2026 12:00 , Пн" → "13 июля 2026 12:00 Пн"
+        text = re.sub(r'\s+', ' ', text.replace(',', ' ').strip())
 
-        # Extract time like ", 19:00" or " 19:00" at the end
+        # Extract time like "19:00" anywhere in the string
         time_str = None
-        time_match = re.search(r',?\s*(\d{1,2}:\d{2})\s*$', text)
+        time_match = re.search(r'\d{1,2}:\d{2}', text)
         if time_match:
-            time_str = time_match.group(1)
-            text = text[:time_match.start()].strip()
+            time_str = time_match.group(0)
+            text = (text[:time_match.start()] + text[time_match.end():]).strip()
+            text = re.sub(r'\s+', ' ', text)
 
         # "с X по Y" pattern
         match = re.match(r'с\s+(.+?)\s+по\s+(.+)', text)
@@ -343,17 +191,21 @@ class ConfigScraper(BaseParser):
         return slug
 
     @staticmethod
-    def _make_short_id(title, max_slug_len=21):
+    def _make_short_id(title, max_slug_len=21, salt=""):
         """Generate short ID slug from title: first letters of words + hash.
 
         Example: 'Дима Устинов. Music for a really long walk' -> 'du-mfarlw-a1b2'
         Fits within max_slug_len (default 21 = 30 - len('CFG-XXXX-')).
+
+        `salt` (e.g. the date string) distinguishes recurring events that
+        share a title but happen on different dates.
         """
+        hash_source = (title + salt).encode()
         # Remove emoji and punctuation, keep words
         clean = re.sub(r'[^\w\s]', ' ', title)
         words = clean.split()
         if not words:
-            return hashlib.md5(title.encode()).hexdigest()[:8]
+            return hashlib.md5(hash_source).hexdigest()[:8]
 
         # First letters of each word, transliterated
         initials = ""
@@ -361,8 +213,8 @@ class ConfigScraper(BaseParser):
             letter = ConfigScraper._transliterate(w[0]) if w else ""
             initials += letter
 
-        # Short hash for uniqueness (from full title)
-        short_hash = hashlib.md5(title.encode()).hexdigest()[:4]
+        # Short hash for uniqueness (from full title + salt)
+        short_hash = hashlib.md5(hash_source).hexdigest()[:4]
 
         # Budget: max_slug_len, need '-' + hash (5 chars)
         budget = max_slug_len - len(short_hash) - 1
@@ -396,6 +248,8 @@ class ConfigScraper(BaseParser):
         category = self._extract_field(card, config.get("card_category_selector"))
         description = self._extract_field(card, config.get("card_description_selector"))
         place = self._extract_field(card, config.get("card_place_selector"))
+        address = self._extract_field(card, config.get("card_address_selector"))
+        price = self._extract_field(card, config.get("card_price_selector"))
 
         # Build URL — if href exists use it, otherwise generate from listing URL + title slug
         if href:
@@ -415,6 +269,10 @@ class ConfigScraper(BaseParser):
             data["description"] = description
         if place:
             data["place"] = place
+        if address:
+            data["address"] = address
+        if price:
+            data["price"] = price
         return data
 
     def get_event(self, event_url=None, tags=None, site=None, card_data=None):
@@ -477,6 +335,34 @@ class ConfigScraper(BaseParser):
         self._current_event = data
         return self.parse(data, tags=tags or ALL_EVENT_TAGS)
 
+    @staticmethod
+    def _listing_page_urls(config, listing_url):
+        """Initial listing page URLs: the listing itself + future months
+        when month-based pagination is configured.
+        """
+        urls = [listing_url]
+        pagination = config.get("pagination") or {}
+        if pagination.get("type") != "month":
+            return urls
+
+        template = pagination.get("url_template", "?year={year}&month={month}")
+        months_ahead = pagination.get("months_ahead", 2)
+        # Some sites (philharmonia) use the season start year in the URL:
+        # months before season_start_month belong to the previous year's season
+        season_start = pagination.get("season_start_month")
+
+        now = datetime.now()
+        year, month = now.year, now.month
+        for _ in range(months_ahead):
+            month += 1
+            if month > 12:
+                month, year = 1, year + 1
+            url_year = year
+            if season_start and month < season_start:
+                url_year = year - 1
+            urls.append(listing_url + template.format(year=url_year, month=month))
+        return urls
+
     def get_events(self, request_params=None, tags=None, existed_event_ids=None):
         request_params = request_params or {}
         existed_event_ids = list(existed_event_ids) if existed_event_ids else []
@@ -488,19 +374,62 @@ class ConfigScraper(BaseParser):
         config = self._resolve_config(site)
         listing_url = config["base_url"] + config["listing_url"]
 
-        response = self._request_get(listing_url)
-        if not response:
-            return
+        pagination = config.get("pagination") or {}
+        max_pages = pagination.get("max_pages", 10)
+        next_selector = (
+            pagination.get("next_selector") if pagination.get("type") == "next" else None
+        )
 
-        soup = BeautifulSoup(response.text, "lxml")
-        cards = soup.select(config.get("card_selector", "a.event"))
+        page_urls = self._listing_page_urls(config, listing_url)
+        visited = set()
+        pages_fetched = 0
 
         listing_slug = self._slug_from_url(listing_url)
         seen_ids = set()
+
+        while page_urls and pages_fetched < max_pages:
+            page_url = page_urls.pop(0)
+            if page_url in visited:
+                continue
+            visited.add(page_url)
+
+            response = self._request_get(page_url)
+            if not response:
+                # Keep whatever the remaining pages give us
+                continue
+            pages_fetched += 1
+
+            soup = BeautifulSoup(response.text, "lxml")
+            cards = soup.select(config.get("card_selector", "a.event"))
+            logger.debug(
+                "%s: %s cards on listing page %s (%s)",
+                config.get("source", self.source), len(cards), pages_fetched, page_url,
+            )
+
+            yield from self._events_from_cards(
+                cards, config, site, tags, listing_slug, seen_ids, existed_event_ids
+            )
+
+            if next_selector:
+                link = soup.select_one(next_selector)
+                if link and link.get("href"):
+                    page_urls.append(urljoin(config["base_url"], link["href"]))
+
+    def _events_from_cards(
+        self, cards, config, site, tags, listing_slug, seen_ids, existed_event_ids
+    ):
         for card in cards:
             card_data = self._parse_listing_card(card, config)
             if not card_data or not card_data.get("title"):
                 continue
+
+            # Optionally skip cards with no parseable date (announcements,
+            # open calls, programme teasers)
+            if config.get("require_date"):
+                fmt = config.get("date_format", "%d.%m.%Y")
+                d_from, d_to, _ = self._parse_date_range(card_data.get("date_str"), fmt)
+                if d_from is None and d_to is None:
+                    continue
 
             url = card_data["url"]
 
@@ -518,7 +447,8 @@ class ConfigScraper(BaseParser):
                 title = card_data["title"]
                 if title and not title[0].isalnum():
                     title = title[2:].strip()
-                event_id = f"{prefix}{self._make_short_id(title, max_slug)}"
+                salt = card_data.get("date_str") or ""
+                event_id = f"{prefix}{self._make_short_id(title, max_slug, salt=salt)}"
             if event_id in existed_event_ids or event_id in seen_ids:
                 continue
             seen_ids.add(event_id)
@@ -541,6 +471,9 @@ class ConfigScraper(BaseParser):
         return place.strip().rstrip(",.")
 
     def _adress(self, event_data):
+        # Explicit address from the card wins (e.g. off-site events)
+        if event_data.get("address"):
+            return event_data["address"]
         place = event_data.get("place")
         if place:
             places = self._current_config.get("places", {})
@@ -648,12 +581,13 @@ class ConfigScraper(BaseParser):
                 and len(slug) <= max_slug):
             return f"{prefix}{slug}"
 
-        # Otherwise generate from title
+        # Otherwise generate from title (+ date, to tell recurring events apart)
         title = event_data.get("title", "")
         # Strip emoji prefix (2 chars: emoji + space)
         if title and not title[0].isalnum():
             title = title[2:].strip()
-        return f"{prefix}{self._make_short_id(title, max_slug)}"
+        salt = event_data.get("date_str") or ""
+        return f"{prefix}{self._make_short_id(title, max_slug, salt=salt)}"
 
     def _url(self, event_data):
         return event_data.get("url", "")
@@ -690,9 +624,12 @@ class ConfigScraper(BaseParser):
         try:
             return str(int(price)) + "₽"
         except (ValueError, TypeError):
-            if "₽" in str(price) or "руб" in str(price).lower():
-                return str(price)
-            return str(price) + "₽"
+            price = str(price).strip()
+            # "1000 р." / "8000 — 10000 руб." → trailing currency word to ₽
+            normalized = re.sub(r"\s*р(?:уб\w*)?\.?\s*$", "₽", price, flags=re.IGNORECASE)
+            if "₽" in normalized or "руб" in normalized.lower():
+                return normalized
+            return normalized + "₽"
 
     def _source(self, event_data):
         return self.source
