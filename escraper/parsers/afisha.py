@@ -4,6 +4,7 @@ import re
 from datetime import datetime, timedelta
 
 from .base import BaseParser, ALL_EVENT_TAGS
+from .config_scraper import MONTHS_RU
 from ..emoji import add_emoji
 
 logger = logging.getLogger(__name__)
@@ -19,6 +20,50 @@ def _parse_afisha_dt(date_str):
     cleaned = date_str.replace(", ", "").strip()
     dt = datetime.strptime(cleaned, "%Y-%m-%dT%H:%M:%S%z")
     return dt.astimezone(BaseParser.TIMEZONE)
+
+
+def _parse_notice_datetime(text, tz, default_hour=19):
+    """Parse a listing-card notice date into a Moscow-aware datetime.
+
+    The city-scoped listing card carries the city-correct session, e.g.
+    ``"13 августа в 19:30"`` or ``"10 и 11 октября"`` or
+    ``"31 июля, 1 и 2 августа"`` (first date is taken). The card has no year,
+    so the current year is assumed and rolled forward if already past.
+    """
+    if not text:
+        return None
+    low = text.lower()
+
+    # Pull the time out first so it can't be mistaken for the day number.
+    hour, minute = default_hour, 0
+    time_match = re.search(r"(\d{1,2}):(\d{2})", low)
+    if time_match:
+        hour, minute = int(time_match.group(1)), int(time_match.group(2))
+        low = (low[:time_match.start()] + low[time_match.end():])
+
+    day_match = re.search(r"\b(\d{1,2})\b", low)
+    if not day_match:
+        return None
+    day = int(day_match.group(1))
+
+    # Month = earliest month name mentioned in the text.
+    best_pos, month = None, None
+    for prefix, num in MONTHS_RU.items():
+        pos = low.find(prefix)
+        if pos != -1 and (best_pos is None or pos < best_pos):
+            best_pos, month = pos, num
+    if month is None:
+        return None
+
+    now = datetime.now(tz)
+    for year in (now.year, now.year + 1):
+        try:
+            dt = tz.localize(datetime(year, month, day, hour, minute))
+        except ValueError:
+            return None
+        if dt.date() >= now.date():
+            return dt
+    return dt
 
 
 class Afisha(BaseParser):
@@ -48,7 +93,7 @@ class Afisha(BaseParser):
         super().__init__(use_proxy=use_proxy)
         self.event_url = None
 
-    def get_event(self, event_url=None, tags=None):
+    def get_event(self, event_url=None, tags=None, listing_hint=None):
         """Fetch and parse a single afisha.ru event page.
 
         Parameters
@@ -58,6 +103,11 @@ class Afisha(BaseParser):
             https://www.afisha.ru/concert/basta-6023789/
         tags : list, optional
             Event tags to return. Defaults to ALL_EVENT_TAGS.
+        listing_hint : dict, optional
+            City-scoped listing-card data ``{"date_from": <dt>, "place_name": str}``.
+            A touring event's page (played in several cities) carries no
+            ``location`` and shows the earliest city's date in its ld+json;
+            when that happens, the hint supplies the requested city's session.
         """
         if event_url is None:
             raise ValueError("'event_url' required.")
@@ -68,14 +118,55 @@ class Afisha(BaseParser):
         if event_json is None:
             raise ValueError("Can't find event ld+json on page")
 
-        event_data = {
+        self.event_url = event_url
+        event_data = self._normalize(event_json, category, body, listing_hint or {})
+        return self.parse(event_data, tags=tags or ALL_EVENT_TAGS)
+
+    def _normalize(self, event_json, category, body, hint):
+        """Resolve date/place, preferring the ld+json but falling back to the
+        city-scoped listing card for touring events (empty ``location``)."""
+        location = event_json.get("location") or {}
+        has_location = bool(location.get("name"))
+
+        if has_location:
+            address = location.get("address") or {}
+            place_name = location.get("name", "")
+            addr = address.get("name") or address.get("streetAddress") or ""
+            start = event_json.get("startDate")
+            date_from = _parse_afisha_dt(start) if start else None
+            end = event_json.get("endDate")
+            date_to = _parse_afisha_dt(end) if end else None
+            offers = event_json.get("offers") or {}
+            price = int(offers["price"]) if offers.get("price") else None
+        else:
+            # Touring event: the page is city-agnostic — trust the city listing.
+            place_name = hint.get("place_name", "") or ""
+            addr = ""
+            date_from = hint.get("date_from")
+            date_to = None
+            price = hint.get("price")
+            if date_from is None and event_json.get("startDate"):
+                logger.warning(
+                    "AFISHA: touring event without city hint, falling back to "
+                    "ld+json date (may be another city): %s", self.event_url
+                )
+                date_from = _parse_afisha_dt(event_json["startDate"])
+
+        if date_to is None or (
+            date_from and (date_to <= date_from or date_to >= date_from + timedelta(days=7))
+        ):
+            date_to = date_from + timedelta(hours=3) if date_from else None
+
+        return {
             "event": event_json,
             "category": category,
             "description": self._extract_description(body),
+            "date_from": date_from,
+            "date_to": date_to,
+            "place_name": place_name,
+            "address": addr.replace("Санкт-Петербург, ", "").strip(),
+            "price": price,
         }
-
-        self.event_url = event_url
-        return self.parse(event_data, tags=tags or ALL_EVENT_TAGS)
 
     def get_events(self, request_params=None, tags=None, existed_event_ids=None):
         """Scrape events from afisha.ru category listings.
@@ -149,13 +240,16 @@ class Afisha(BaseParser):
             if not response:
                 continue
 
-            for event_url in self._extract_event_urls(response.text):
+            for card in self._extract_cards(response.text):
+                event_url = card["url"]
                 event_id = self._id_from_url(event_url)
                 if event_id in existed_event_ids:
                     continue
 
                 try:
-                    event = self.get_event(event_url=event_url, tags=tags)
+                    event = self.get_event(
+                        event_url=event_url, tags=tags, listing_hint=card
+                    )
                 except (ValueError, KeyError, json.JSONDecodeError) as e:
                     logger.warning("AFISHA: skipping event %s: %s", event_url, e)
                     continue
@@ -170,22 +264,72 @@ class Afisha(BaseParser):
 
                 yield event
 
-    def _extract_event_urls(self, page_text):
-        """Return de-duplicated absolute event URLs from a listing page."""
+    def _extract_cards(self, page_text):
+        """Return de-duplicated listing cards as dicts."""
         from bs4 import BeautifulSoup
 
         soup = BeautifulSoup(page_text, "lxml")
         seen = set()
-        urls = []
-        for card in soup.select('[data-test="LINK ITEM-NAME ITEM-URL"]'):
-            href = (card.get("href") or "").split("?")[0]
+        cards = []
+        for link in soup.select('[data-test="LINK ITEM-NAME ITEM-URL"]'):
+            href = (link.get("href") or "").split("?")[0]
             if not re.search(r"-\d+/?$", href):
                 continue
             if href in seen:
                 continue
             seen.add(href)
-            urls.append(self.BASE_URL + href if href.startswith("/") else href)
-        return urls
+
+            date_from, place_name, price = self._extract_card_notice(link)
+            cards.append({
+                "url": self.BASE_URL + href if href.startswith("/") else href,
+                "date_from": date_from,
+                "place_name": place_name,
+                "price": price,
+            })
+        return cards
+
+    def _extract_card_notice(self, title_link):
+        """From a card title link, read its city-correct date, venue and price.
+
+        Returns ``(date_from, place_name, price)`` where price is an int (rub)
+        or None. Used to fill touring events whose detail page is city-agnostic.
+        """
+        notice = None
+        node = title_link
+        for _ in range(7):
+            node = node.parent
+            if node is None:
+                break
+            notice = node.select_one('[data-test="ITEM-META ITEM-NOTICE"]')
+            if notice is not None:
+                break
+        if notice is None:
+            return None, "", None
+
+        venue_link = notice.find("a")
+        place_name = venue_link.get_text(" ", strip=True) if venue_link else ""
+
+        full = notice.get_text(" ", strip=True)
+        if place_name and place_name in full:
+            date_text = full[:full.rfind(place_name)].rstrip(" ,")
+        else:
+            date_text = full
+        date_from = _parse_notice_datetime(date_text, self.TIMEZONE)
+
+        # Price lives on a ticket button near the notice ("От 4000 ₽").
+        price = None
+        holder = notice
+        for _ in range(5):
+            holder = holder.parent
+            if holder is None:
+                break
+            button = holder.select_one('[data-test~="TICKET-BUTTON"]')
+            if button:
+                digits = re.sub(r"\D", "", button.get_text().replace("\xa0", " "))
+                price = int(digits) if digits else None
+                break
+
+        return date_from, place_name, price
 
     @staticmethod
     def _extract_ld_json(page_text):
@@ -241,34 +385,17 @@ class Afisha(BaseParser):
         return f"{self.source}-{event_id}"
 
     def _adress(self, event_data):
-        location = event_data["event"].get("location") or {}
-        address = location.get("address") or {}
-        addr = address.get("name") or address.get("streetAddress") or ""
-        return addr.replace("Санкт-Петербург, ", "").strip()
+        return event_data.get("address", "")
 
     def _category(self, event_data):
         return event_data.get("category") or ""
 
     def _date_from(self, event_data):
-        self._date_from_ = _parse_afisha_dt(event_data["event"]["startDate"])
+        self._date_from_ = event_data.get("date_from")
         return self._date_from_
 
     def _date_to(self, event_data):
-        end = event_data["event"].get("endDate")
-        date_to = _parse_afisha_dt(end) if end else None
-
-        if (
-            date_to
-            and self._date_from_
-            and date_to < self._date_from_ + timedelta(days=7)
-            and date_to != self._date_from_
-        ):
-            self._date_to_ = date_to
-        elif self._date_from_:
-            self._date_to_ = self._date_from_ + timedelta(hours=3)
-        else:
-            self._date_to_ = None
-
+        self._date_to_ = event_data.get("date_to")
         return self._date_to_
 
     def _date_from_to(self, event_data):
@@ -278,7 +405,7 @@ class Afisha(BaseParser):
         return self._id_from_url(self.event_url)
 
     def _place_name(self, event_data):
-        return (event_data["event"].get("location") or {}).get("name", "")
+        return event_data.get("place_name", "")
 
     def _full_text(self, event_data):
         return (event_data.get("description") or "").strip()
@@ -293,8 +420,7 @@ class Afisha(BaseParser):
         return image
 
     def _price(self, event_data):
-        offers = event_data["event"].get("offers") or {}
-        price = offers.get("price")
+        price = event_data.get("price")
         if price:
             return str(int(price)) + "₽"
         return "на сайте"
