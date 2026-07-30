@@ -8,6 +8,7 @@ from .mts import MTS
 from .culture import Culture
 from .tripster import Tripster
 from .tg import Telegram
+from .yandex import Yandex
 from .config_scraper import ConfigScraper
 from .kassir import Kassir
 from .afisha import Afisha
@@ -23,6 +24,7 @@ all_parsers = dict(
     cltr=Culture,
     tripster=Tripster,
     tg=Telegram,
+    yandex=Yandex,
     config=ConfigScraper,
     kassir=Kassir,
     afisha=Afisha,
